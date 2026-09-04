@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Ergebnisse der Browserpruefung
+build/
+
+# Quelldaten der internen Fassung – zu groß fuers Repository (rund 120 MB).
+# Aus ihnen entsteht data/forstadressen/ mit tools/build_forstadressen.py.
+data/intern_data.csv
+data/intern_data*.csv
+data/beispiel/*.csv

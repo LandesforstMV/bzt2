@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BASTAKLIM – Bestockungszieltypen nach Klimastufe, Standort und Baumart</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14351f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BASTAKLIM">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Startbild: erscheint zuerst, Klick öffnet die Anwendung -->
+<div class="splash" id="splash">
+  <div class="splash-bild">
+    <img id="splash-img" src="assets/front.PNG" alt="">
+    <div class="splash-ersatz" id="splash-ersatz">
+      <h1>BASTAKLIM</h1>
+      <p>Digitale Baumarten-Standort-Klima Anwendung</p>
+      <span class="splash-linie"></span>
+    </div>
+  </div>
+  <div class="splash-fuss">
+    <div class="ladebalken"><i id="ladebalken-fuellung"></i></div>
+    <p class="splash-hinweis" id="splash-hinweis">wird geladen …</p>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="brand">
+    <button type="button" class="sidebar-schalter" id="sidebar-schalter"
+            aria-label="Seitenleiste ein- und ausblenden" aria-expanded="true">☰</button>
+    <span class="brand-mark logo-slot" aria-hidden="true">
+      <img data-logo="logo" alt="">
+    </span>
+    <span>
+      <strong>BZT-Filter</strong>
+      <small class="nur-pro">Bestandeszieltypen · Klimastufe → Standort → BZT → Baumart</small>
+      <small class="nur-light">Welche Baumarten passen auf meinen Standort?</small>
+    </span>
+  </div>
+
+  <div class="brand-mitte logo-slot">
+    <img data-logo="logo_lf" alt="">
+  </div>
+
+  <!-- Umschalter zwischen den beiden Ansichten. Beide stehen in dieser
+       Datei; gewechselt wird ohne Neuladen, die Auswahl bleibt erhalten. -->
+  <div class="ansicht-schalter seg" role="group" aria-label="Ansicht wählen">
+    <button type="button" data-ansicht="light" aria-pressed="false">light</button>
+    <button type="button" data-ansicht="professional" aria-pressed="true">professional</button>
+  </div>
+
+  <div class="header-tools">
+    <div class="result-badge nur-pro">
+      <b id="result-count">–</b>
+      <span>Kombinationen</span>
+    </div>
+    <label class="switch nur-pro" title="Optionen, die mit der aktuellen Auswahl nicht möglich sind, ausgegraut anzeigen statt ausblenden">
+      <input type="checkbox" id="show-unavailable">
+      <span>Nicht mögliche zeigen</span>
+    </label>
+    <button type="button" class="btn btn--install" id="install" hidden>App installieren</button>
+    <button type="button" class="btn nur-pro" id="reset-all">Alles zurücksetzen</button>
+    <button type="button" class="btn nur-light" id="light-reset">Von vorn beginnen</button>
+  </div>
+</header>
+
+<div class="layout" id="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <section class="karte">
+      <h2>BASTAKLIM v3.1 Beta</h2>
+      <div class="karte-inhalt">
+        <p>JP. Nasse</p>
+        <p>Dr. E. A. Thurm</p>
+        <a class="external"
+           href="mailto:bastaklim@lfoa-mv.de?subject=BASTAKLIM%20Feedback">bastaklim@lfoa-mv.de</a>
+      </div>
+      <footer>BT-FVI Waldbau Projekt MultiRiskSuit</footer>
+    </section>
+
+    <section class="karte">
+      <h2>Quellen</h2>
+      <div class="karte-inhalt">
+        <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass (PDF)</a>
+        <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">Klimastufen-Karte (PDF)</a>
+      </div>
+    </section>
+
+    <section class="karte nur-pro">
+      <h2>Auswahl</h2>
+      <div class="karte-inhalt" id="sidebar-status">
+        <p>keine Filter gesetzt</p>
+      </div>
+      <div class="karte-inhalt">
+        <button type="button" class="btn btn--klein" id="sidebar-reset">zurücksetzen</button>
+        <button type="button" class="btn btn--klein" id="sidebar-csv">als CSV speichern</button>
+        <button type="button" class="btn btn--klein" id="sidebar-druck">Standortblatt drucken</button>
+      </div>
+    </section>
+
+    <section class="karte logo-karte" id="sidebar-logos" hidden>
+      <div class="karte-inhalt sidebar-logos">
+        <span class="logo-slot"><img data-logo="logo1" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo2" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo3" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo4" alt=""></span>
+      </div>
+    </section>
+  </aside>
+
+  <div class="inhalt">
+
+    <!-- ================================================================ -->
+    <!-- Ansicht "light": geführter Ablauf in drei Schritten               -->
+    <!-- ================================================================ -->
+    <div class="ansicht ansicht--light">
+
+
+    <!-- Fortschritt: drei Schritte, der aktuelle ist hervorgehoben -->
+    <ol class="schritte" id="schritte">
+      <li data-schritt="1"><span>1</span> Klimastufe</li>
+      <li data-schritt="2"><span>2</span> Standort</li>
+      <li data-schritt="3"><span>3</span> Baumarten</li>
+    </ol>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Schritt 1: Verortung in der Karte                                 -->
+    <!-- ---------------------------------------------------------------- -->
+    <section class="light-schritt" data-schritt="1" id="schritt-1">
+      <h2>Wo liegt Ihre Fläche?</h2>
+      <p class="light-lead">
+        In die Karte klicken. Gefärbt sind nur die <strong>Waldflächen</strong> –
+        klicken Sie in oder dicht neben den Wald, der Sie interessiert.
+      </p>
+
+      <div class="karte-buehne">
+        <div class="karte-halter" id="karte-halter">
+          <img id="karte-bild" src="assets/klimastufe/karte.png"
+               alt="Klimastufenkarte Mecklenburg-Vorpommern">
+          <span class="karte-marke" id="karte-marke" hidden></span>
+          <p class="karte-fehlt" id="karte-fehlt" hidden>
+            <strong>Die Karte fehlt.</strong><br>
+            <code>assets/klimastufe/karte.png</code> wird von
+            <code>python3 tools/extract_images.py</code> erzeugt.
+            Solange sie fehlt, bitte die Klimastufe unten direkt wählen.
+          </p>
+        </div>
+
+        <div class="karte-seite">
+          <p class="karte-befund" id="karte-befund">Noch nichts ausgewählt.</p>
+          <p class="light-hinweis">
+            Oder die Klimastufe direkt wählen:
+          </p>
+          <div class="klima-wahl" id="klima-wahl"></div>
+          <p class="light-quelle">
+            Karte: Klimastufen nach BAS Standorts-Karte 2023 ·
+            <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">PDF öffnen ↗</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Schritt 2: Standort, geführt oder direkt                          -->
+    <!-- ---------------------------------------------------------------- -->
+    <section class="light-schritt" data-schritt="2" id="schritt-2" hidden>
+      <h2>Welcher Standort?</h2>
+
+      <div class="seg seg--breit" role="group" aria-label="Art der Standortwahl">
+        <button type="button" data-stgrmodus="gefuehrt" class="is-on" aria-pressed="true">Schritt für Schritt</button>
+        <button type="button" data-stgrmodus="direkt" aria-pressed="false">Standortgruppe direkt</button>
+      </div>
+
+      <div id="stgr-gefuehrt">
+        <div class="gradient" id="gradient"></div>
+        <p class="light-hinweis" id="gradient-befund"></p>
+      </div>
+
+      <div id="stgr-direkt" hidden>
+        <input type="search" class="col-search" id="stgr-suche"
+               placeholder="Standortgruppe suchen …" aria-label="Standortgruppe suchen">
+        <div class="tiles tiles--breit" id="stgr-liste"></div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- Schritt 3: Ergebnis                                               -->
+    <!-- ---------------------------------------------------------------- -->
+    <section class="light-schritt" data-schritt="3" id="schritt-3" hidden>
+      <h2>Mögliche Baumarten</h2>
+      <p class="light-lead" id="ergebnis-kopf"></p>
+
+      <p class="baum-legende">
+        <span class="baum-legende-feld"></span>
+        <span><strong>Grün hinterlegt</strong> sind die Baumarten, die in
+        mindestens einem der möglichen Zieltypen die <strong>führende
+        Baumart</strong> sind. Das ist unabhängig vom Anteil: Zwei Baumarten
+        können denselben Höchstanteil haben und trotzdem verschieden weit vorn
+        im Zieltyp stehen.</span>
+      </p>
+
+      <!-- Die gewählte Mischung. Ohne Auswahl steht hier die Aufforderung. -->
+      <div class="mischung" id="mischung">
+        <div class="mischung-arten" id="mischung-arten"></div>
+        <p class="mischung-text" id="mischung-text"></p>
+      </div>
+
+      <div class="baumliste" id="baumliste-haupt"></div>
+
+      <details class="baumliste-mehr" id="baumliste-mehr">
+        <summary><span id="mehr-anzahl"></span></summary>
+        <div class="baumliste" id="baumliste-rest"></div>
+      </details>
+
+      <details class="baumliste-mehr baumliste-mehr--raus" id="baumliste-raus-box" hidden>
+        <summary><span id="raus-anzahl"></span></summary>
+        <p class="light-hinweis">
+          Diese Baumarten kommen auf dem Standort zwar vor, lassen sich aber mit
+          der gewählten Mischung in keinem Bestockungszieltyp zusammenbringen.
+        </p>
+        <div class="baumliste" id="baumliste-raus"></div>
+      </details>
+
+      <p class="light-fussnote">
+        Angegeben ist der <strong>höchste Anteil</strong>, mit dem die Baumart auf
+        diesem Standort in einem Bestockungszieltyp vorkommen darf – bei einer
+        gewählten Mischung nur noch in den Zieltypen, die alle gewählten Arten
+        zugleich zulassen. Die Anteile sind Obergrenzen und addieren sich nicht
+        zu 100 %. Die einzelnen Zieltypen und ihre Spannen stehen im
+        <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass</a>.
+      </p>
+
+      <div class="light-aktionen">
+        <button type="button" class="btn" id="light-zurueck">Standort ändern</button>
+        <button type="button" class="btn" id="light-drucken">Drucken</button>
+      </div>
+    </section>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Ansicht "professional": die vier Spalten                         -->
+    <!-- ================================================================ -->
+    <div class="ansicht ansicht--pro">
+
+    <p class="active-filters" id="active-filters" hidden></p>
+
+    <!-- Reiter für schmale Fenster. Am Telefon liegen die vier Spalten
+         sonst untereinander und man scrollt endlos; hier ist immer nur
+         eine sichtbar. Auf dem Desktop ist die Leiste ausgeblendet. -->
+    <nav class="spalten-reiter" id="spalten-reiter" aria-label="Spalte wählen"></nav>
+
+    <main class="columns" id="columns">
+
+      <section class="col" data-facet="kli">
+        <header class="col-head">
+          <h2>Klimastufe</h2>
+          <span class="col-count"><b data-count>–</b><span data-total></span></span>
+          <button type="button" class="col-clear" data-clear hidden aria-label="Auswahl Klimastufe löschen">Auswahl löschen</button>
+        </header>
+        <div class="col-tools">
+          <input type="search" class="col-search" data-search placeholder="Klimastufe suchen …" aria-label="Klimastufe suchen">
+        </div>
+        <div class="tiles" data-tiles></div>
+        <p class="col-empty" data-empty hidden>Keine Treffer.</p>
+      </section>
+
+      <section class="col" data-facet="stgr">
+        <header class="col-head">
+          <h2>Standort</h2>
+          <span class="col-count"><b data-count>–</b><span data-total></span></span>
+          <button type="button" class="col-clear" data-clear hidden aria-label="Auswahl Standort löschen">Auswahl löschen</button>
+        </header>
+        <div class="col-tools">
+          <input type="search" class="col-search" data-search placeholder="Standortgruppe suchen …" aria-label="Standortgruppe suchen">
+        </div>
+        <div class="tiles" data-tiles></div>
+        <p class="col-empty" data-empty hidden>Keine Treffer.</p>
+      </section>
+
+      <section class="col" data-facet="bzt">
+        <header class="col-head">
+          <h2>BZT</h2>
+          <span class="col-count"><b data-count>–</b><span data-total></span></span>
+          <button type="button" class="col-clear" data-clear hidden aria-label="Auswahl BZT löschen">Auswahl löschen</button>
+        </header>
+        <div class="col-tools">
+          <input type="search" class="col-search" data-search placeholder="Bestandeszieltyp suchen …" aria-label="Bestandeszieltyp suchen">
+        </div>
+        <div class="tiles" data-tiles></div>
+        <p class="col-empty" data-empty hidden>Keine Treffer.</p>
+      </section>
+
+      <section class="col" data-facet="ba">
+        <header class="col-head">
+          <h2>Baumart</h2>
+          <span class="col-count"><b data-count>–</b><span data-total></span></span>
+          <button type="button" class="col-clear" data-clear hidden aria-label="Auswahl Baumart löschen">Auswahl löschen</button>
+        </header>
+        <div class="col-tools">
+          <input type="search" class="col-search" data-search placeholder="Baumart suchen …" aria-label="Baumart suchen">
+          <div class="seg" role="group" aria-label="Verknüpfung mehrerer Baumarten">
+            <button type="button" data-bamode="und" class="is-on" aria-pressed="true" title="Nur BZT, die alle gewählten Baumarten enthalten">alle</button>
+            <button type="button" data-bamode="oder" aria-pressed="false" title="BZT, die mindestens eine der gewählten Baumarten enthalten">eine</button>
+          </div>
+        </div>
+        <p class="col-hint">sortiert nach Maximalanteil</p>
+        <div class="tiles" data-tiles></div>
+        <p class="col-empty" data-empty hidden>Keine Treffer.</p>
+      </section>
+
+    </main>
+
+    <section class="results" id="results">
+      <header class="results-head">
+        <h2>Ergebnis</h2>
+        <p id="results-summary"></p>
+        <button type="button" class="btn" id="drucken">Standortblatt drucken</button>
+        <button type="button" class="btn" id="export-csv">Als CSV speichern</button>
+      </header>
+      <div class="druckkopf" id="druckkopf" aria-hidden="true"></div>
+      <div id="results-body"></div>
+    </section>
+
+    </div><!-- /ansicht--pro -->
+
+    <footer class="app-footer">
+      <div class="footer-text">
+        <span id="meta-line"></span>
+        <span>Quellen:
+          <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass (PDF)</a> ·
+          <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">Klimastufen-Karte (PDF)</a>
+        </span>
+      </div>
+      <div class="footer-logos">
+        <span class="logo-slot"><img data-logo="logo1" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo2" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo3" alt=""></span>
+        <span class="logo-slot"><img data-logo="logo4" alt=""></span>
+      </div>
+    </footer>
+
+  </div>
+</div>
+
+<div class="viewer" id="viewer" hidden>
+  <div class="viewer-fenster" role="dialog" aria-modal="true" aria-labelledby="viewer-titel">
+    <header class="viewer-kopf">
+      <div>
+        <h2 id="viewer-titel"></h2>
+        <p id="viewer-sub"></p>
+      </div>
+      <button type="button" class="viewer-zu" aria-label="Schließen">×</button>
+    </header>
+    <div class="viewer-buehne">
+      <button type="button" id="viewer-zurueck" class="viewer-pfeil" aria-label="vorige Seite">‹</button>
+      <img id="viewer-bild" alt="">
+      <p id="viewer-hinweis" class="viewer-hinweis" hidden>
+        Für diese Seite liegt kein Bild unter <code>assets/seiten/</code>.
+        Bitte <code>python3 tools/extract_images.py</code> ausführen oder das
+        PDF über den Link unten öffnen.
+      </p>
+      <button type="button" id="viewer-weiter" class="viewer-pfeil" aria-label="nächste Seite">›</button>
+    </div>
+    <footer class="viewer-fuss">
+      <span id="viewer-blatt"></span>
+      <a id="viewer-pdf" href="#" target="_blank" rel="noopener">Original-PDF öffnen ↗</a>
+    </footer>
+  </div>
+</div>
+
+<!-- Betriebsart: index.html = professional, siehe Kopf von app.js -->
+<script>window.BZT_MODUS = "professional";</script>
+<script src="data/bzt_data.js"></script>
+<script src="data/klimaraster.js"></script>
+<script src="app.js"></script>
+<script src="light.js"></script>
+</body>
+</html>

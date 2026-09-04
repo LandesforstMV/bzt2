@@ -1,0 +1,1711 @@
+/* ==========================================================================
+   BZT-Filter – Layout und Gestaltung
+   Farben/Größen zentral über die Variablen in :root anpassbar.
+   ========================================================================== */
+
+:root {
+  --gruen-900: #14351f;
+  --gruen-700: #1f5c34;
+  --gruen-600: #2c7a45;
+  --gruen-100: #e3f0e6;
+  --gruen-050: #f2f8f3;
+
+  --blau-600: #24657f;
+  --sand-100: #f6f3ec;
+
+  --text: #1c2320;
+  --text-schwach: #5d6b63;
+  --linie: #d9e0da;
+  --flaeche: #ffffff;
+  --grund: #eef1ec;
+
+  --radius: 10px;
+  --schatten: 0 1px 2px rgba(20, 40, 25, .07), 0 4px 14px rgba(20, 40, 25, .06);
+
+  /* Höhe der scrollbaren Kachel-Listen */
+  --spalten-hoehe: clamp(340px, 54vh, 640px);
+
+  /* Breite der Seitenleiste */
+  --sidebar-breite: 208px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--text);
+  font: 15px/1.5 "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 650; line-height: 1.25; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9em;
+}
+
+/* --- Kopfzeile ----------------------------------------------------------- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--gruen-900);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.sidebar-schalter {
+  flex: none;
+  width: 32px; height: 32px;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .08);
+  color: #fff; font-size: 15px; line-height: 1;
+  cursor: pointer;
+}
+.sidebar-schalter:hover { background: rgba(255, 255, 255, .22); }
+.sidebar-schalter[aria-expanded="false"] {
+  border-color: rgba(255, 255, 255, .55);
+  background: rgba(255, 255, 255, .18);
+}
+.brand strong { display: block; font-size: 17px; letter-spacing: .01em; }
+.brand small { display: block; font-size: 12.5px; opacity: .78; }
+
+.brand-mark {
+  width: 34px; height: 34px; flex: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 70%, #7cc48c 0 26%, transparent 27%),
+    radial-gradient(circle at 62% 42%, #a8dcb4 0 30%, transparent 31%),
+    linear-gradient(160deg, var(--gruen-600), var(--gruen-700));
+}
+.brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* Logo oben mittig: assets/logo_lf.png */
+.brand-mitte { flex: 0 1 auto; display: flex; justify-content: center; }
+.brand-mitte img { max-height: 42px; max-width: 260px; display: block; }
+
+@media (max-width: 900px) { .brand-mitte { order: 3; width: 100%; } }
+
+.header-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+.result-badge {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .12);
+  font-size: 12.5px;
+}
+.result-badge b { font-size: 16px; }
+
+.switch {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; opacity: .9; cursor: pointer; user-select: none;
+}
+.switch input { accent-color: var(--gruen-600); width: 15px; height: 15px; }
+
+.btn {
+  padding: 6px 13px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .08);
+  color: inherit;
+  font: inherit; font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover { background: rgba(255, 255, 255, .2); }
+.btn:active { transform: translateY(1px); }
+
+/* --- Zeile mit den aktiven Filtern --------------------------------------- */
+
+.active-filters {
+  margin: 0;
+  padding: 9px 20px;
+  background: var(--gruen-100);
+  border-bottom: 1px solid var(--linie);
+  font-size: 13px;
+  color: var(--gruen-900);
+}
+.active-filters .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 2px 6px 2px 0;
+  padding: 2px 6px 2px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--linie);
+}
+.active-filters .chip b { font-weight: 600; }
+.active-filters .chip button {
+  border: 0; background: none; cursor: pointer;
+  color: var(--text-schwach); font-size: 15px; line-height: 1; padding: 2px 4px;
+}
+.active-filters .chip button:hover { color: #b03030; }
+
+/* --- Spalten ------------------------------------------------------------- */
+
+.columns {
+  display: grid;
+  grid-template-columns: 0.9fr 1.15fr 1.15fr 1fr;
+  gap: 14px;
+  padding: 16px 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) { .columns { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px)  { .columns { grid-template-columns: 1fr; } }
+
+.col {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.col-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--gruen-050);
+  border-bottom: 1px solid var(--linie);
+}
+.col-head h2 { font-size: 15px; color: var(--gruen-900); }
+
+.col-count { font-size: 12.5px; color: var(--text-schwach); white-space: nowrap; }
+.col-count b { color: var(--gruen-700); font-size: 14px; }
+
+.col-clear {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: 0; background: none; padding: 0;
+  color: var(--blau-600); font: inherit; font-size: 12px;
+  text-decoration: underline; cursor: pointer;
+}
+
+.col-tools { display: flex; gap: 8px; padding: 9px 12px 4px; }
+
+.col-search {
+  flex: 1 1 auto; min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--linie);
+  border-radius: 7px;
+  font: inherit; font-size: 13px;
+  background: #fff;
+}
+.col-search:focus { outline: 2px solid var(--gruen-600); outline-offset: -1px; }
+
+.seg { display: flex; flex: none; border: 1px solid var(--linie); border-radius: 7px; overflow: hidden; }
+.seg button {
+  border: 0; background: #fff; padding: 0 9px;
+  font: inherit; font-size: 12px; color: var(--text-schwach); cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--linie); }
+.seg button.is-on { background: var(--gruen-600); color: #fff; }
+
+.col-hint { margin: 4px 12px 0; font-size: 11.5px; color: var(--text-schwach); }
+.col-empty { margin: 0; padding: 18px 12px; font-size: 13px; color: var(--text-schwach); }
+
+.tiles {
+  padding: 8px 10px 12px;
+  overflow-y: auto;
+  max-height: var(--spalten-hoehe);
+  scrollbar-width: thin;
+}
+
+.tiles-group {
+  margin: 10px 2px 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+}
+.tiles-group:first-child { margin-top: 2px; }
+
+/* --- Kacheln ------------------------------------------------------------- */
+
+.tile {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px;
+  border: 1px solid var(--linie);
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s, background .12s, box-shadow .12s;
+}
+.tile:hover { border-color: var(--gruen-600); background: var(--gruen-050); }
+.tile:focus-visible { outline: 2px solid var(--blau-600); outline-offset: 1px; }
+
+.tile[aria-pressed="true"] {
+  border-color: var(--gruen-700);
+  background: var(--gruen-100);
+  box-shadow: inset 3px 0 0 var(--gruen-700);
+}
+
+.tile.is-off { opacity: .38; cursor: not-allowed; filter: grayscale(.7); }
+.tile.is-off:hover { border-color: var(--linie); background: #fff; }
+
+/* Bildkachel: Platzhalter liegt im Hintergrund, das PNG legt sich darüber.
+   Fehlt das PNG, bleibt der Platzhalter sichtbar (siehe app.js).
+
+   ⚠️ Sobald das echte Bild da ist, MUSS der Platzhalter weg – dafür setzt
+   app.js die Klasse .thumb--geladen. Ohne sie blieb er sichtbar: Die
+   Kacheln der Klimastufe, des BZT und des Standorts zeigen ihr Bild mit
+   object-fit: contain, also mit Rand, und viele PNG/SVG sind an den Rändern
+   durchsichtig. Durch beides schien das gezeichnete Ersatzmotiv hindurch –
+   hinter dem richtigen Bild lag ein zweites, fremdes.
+   (Die Regeln weiter unten setzen nur background-COLOR auf Weiß; das
+   Hintergrundbild aus .thumb--kli & Co. überleben sie.) */
+.thumb {
+  position: relative;
+  width: 54px; height: 54px;
+  flex: none;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--sand-100);
+  display: grid;
+  place-items: center;
+}
+.thumb img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.thumb .thumb-code {
+  position: relative;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: rgba(0, 0, 0, .55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .6);
+  padding: 0 2px;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.1;
+}
+
+/* Ein Bild bleibt unsichtbar, bis es wirklich geladen ist.
+
+   Ohne das zeigt der Browser sein Kaputt-Symbol, sobald eine Quelle
+   fehlschlägt – und fehlschlagen ist hier der Normalfall: thumb() probiert
+   .png, .jpg, .jpeg, .webp und .svg der Reihe nach durch, logoLaden()
+   zehn Kandidaten, das Startbild drei. Bei jedem Versuch blitzte das
+   Symbol kurz auf.
+
+   Gesetzt wird die Klasse im "load"-Ereignis (app.js); bei den Kacheln
+   liegt sie auf der Kachel selbst, weil dort zusätzlich das
+   Ersatzmotiv verschwinden muss. */
+.thumb img,
+.splash-bild img,
+.logo-slot img {
+  opacity: 0;
+  transition: opacity .12s linear;
+}
+.thumb--geladen img,
+img.ist-geladen { opacity: 1; }
+
+/* Platzhalter-Motive je Spalte */
+.thumb--kli  { background: #dfe9f2 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M10 8h28v32H10z' fill='none' stroke='%2385a3bb' stroke-width='2'/%3E%3Cpath d='M17 30c2-6 1-11 5-14s9 1 10 5-2 9-6 10-11 2-9-1z' fill='%23b7cddd'/%3E%3C/svg%3E") center/70% no-repeat; }
+.thumb--stgr { background: #e8e3d6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='8' y='12' width='32' height='8' fill='%23c6b89a'/%3E%3Crect x='8' y='22' width='32' height='7' fill='%23b0a07f'/%3E%3Crect x='8' y='31' width='32' height='6' fill='%23978568'/%3E%3Cpath d='M24 6c3 4 5 6 5 8a5 5 0 0 1-10 0c0-2 2-4 5-8z' fill='%236f9fc0'/%3E%3C/svg%3E") center/72% no-repeat; }
+.thumb--bzt  { background: #dfe8db url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M14 34 20 10l6 24z' fill='%238bab7e'/%3E%3Cpath d='M26 34 32 16l6 18z' fill='%23a9c39d'/%3E%3Crect x='4' y='34' width='40' height='4' fill='%23c3b596'/%3E%3C/svg%3E") center/76% no-repeat; }
+.thumb--ba   { background: #e2ecdd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M36 8c2 14-6 26-18 30 0-14 6-26 18-30z' fill='%2392b884'/%3E%3Cpath d='M36 8C28 18 22 26 18 38' fill='none' stroke='%23507a48' stroke-width='1.6'/%3E%3C/svg%3E") center/78% no-repeat; }
+
+/* Bild ist da – Ersatzmotiv abräumen. Muss NACH den vier Zeilen darüber
+   stehen, sonst gewinnt bei gleicher Spezifität wieder der Platzhalter. */
+.thumb--geladen { background-image: none; }
+
+/* Klimastufe: Karte vollständig zeigen */
+.col[data-facet="kli"] .tile { grid-template-columns: 84px 1fr auto; }
+.col[data-facet="kli"] .thumb { width: 84px; height: 62px; background-color: #fff; }
+.thumb--kli img { object-fit: contain; }
+
+/* BZT: das Bestandesbild ist sehr breit – flachere Kachel */
+.col[data-facet="bzt"] .tile { grid-template-columns: 104px 1fr auto; }
+.col[data-facet="bzt"] .thumb { width: 104px; height: 50px; background-color: #fff; }
+
+/* Standort: Piktogramm Nährkraft × Feuchtestufe (Erlass, Abschnitt 3.5).
+   Breitere Kachel, damit die Beschriftung der Feuchtestufen lesbar bleibt. */
+.col[data-facet="stgr"] .tile { grid-template-columns: 134px 1fr auto; }
+.col[data-facet="stgr"] .thumb { width: 134px; height: 96px; background-color: #fff; }
+.thumb--stgr img { object-fit: contain; }
+
+.thumb-code--lang { font-size: 9px; letter-spacing: -.01em; }
+
+.tile-body { min-width: 0; }
+.tile-code { display: block; font-weight: 650; font-size: 13.5px; }
+.tile-name { display: block; font-size: 12px; color: var(--text-schwach); }
+.tile-lat {
+  display: block;
+  font-size: 10.5px;
+  font-style: italic;
+  color: #7c8a80;
+  line-height: 1.25;
+}
+.tile-meta { display: block; margin-top: 2px; font-size: 11px; color: var(--text-schwach); }
+
+.tile-right {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+
+.tile-doc {
+  border: 1px solid var(--linie);
+  background: #fff;
+  border-radius: 6px;
+  width: 22px; height: 20px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--blau-600);
+  cursor: pointer;
+}
+.tile-doc:hover { background: var(--gruen-050); border-color: var(--gruen-600); }
+
+.tile-count {
+  align-self: center;
+  min-width: 26px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gruen-050);
+  border: 1px solid var(--linie);
+  font-size: 11.5px;
+  color: var(--text-schwach);
+  text-align: center;
+}
+.tile[aria-pressed="true"] .tile-count { background: #fff; }
+
+.bar {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+  border-radius: 3px;
+  background: var(--linie);
+  overflow: hidden;
+}
+.bar i { display: block; height: 100%; background: var(--gruen-600); }
+.bar.bar--nb i { background: var(--blau-600); }
+
+.pill {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--sand-100);
+  font-size: 10.5px;
+  color: var(--text-schwach);
+}
+
+/* --- Ergebnisbereich ----------------------------------------------------- */
+
+.results { padding: 6px 20px 24px; }
+
+.results-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px;
+  margin-bottom: 10px;
+}
+.results-head h2 { font-size: 16px; color: var(--gruen-900); }
+.results-head p { margin: 0; flex: 1 1 260px; font-size: 13px; color: var(--text-schwach); }
+.results-head .btn { border-color: var(--linie); background: #fff; color: var(--text); }
+.results-head .btn:hover { background: var(--gruen-050); }
+
+.bzt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+
+.card {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  overflow: hidden;
+}
+.card.is-focus { border-color: var(--gruen-700); box-shadow: 0 0 0 2px var(--gruen-100), var(--schatten); }
+
+.card-bild {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--linie);
+  background: #fff;
+  cursor: zoom-in;
+}
+.card-bild .thumb--breit {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1396 / 380;
+  border-radius: 0;
+  background-color: #f4f6f2;
+}
+.card-bild .thumb--breit img { object-fit: contain; }
+.card-bild:hover { background: var(--gruen-050); }
+
+.card-head {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 13px;
+  background: var(--gruen-050);
+  border-bottom: 1px solid var(--linie);
+}
+.card-head h3 { font-size: 14.5px; }
+.card-head .sub { font-size: 12px; color: var(--text-schwach); }
+
+.btn--klein {
+  flex: none;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  border-color: var(--linie);
+  background: #fff;
+  color: var(--blau-600);
+}
+.btn--klein:hover { background: #fff; border-color: var(--gruen-600); }
+
+.grp { padding: 9px 13px; border-bottom: 1px dashed var(--linie); }
+.grp:last-child { border-bottom: 0; }
+.grp-head {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 11.5px; color: var(--text-schwach); margin-bottom: 5px;
+}
+.grp-head b { color: var(--gruen-700); }
+
+.arten { display: flex; flex-wrap: wrap; gap: 4px; }
+.art {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--linie);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+}
+.art:hover { border-color: var(--gruen-600); background: var(--gruen-050); }
+.art-txt { display: flex; flex-direction: column; }
+.art small { color: var(--text-schwach); font-size: 10.5px; }
+.art i { font-size: 9.5px; color: #8b978f; font-style: italic; }
+.art.is-sel i { color: rgba(255, 255, 255, .72); }
+.art.is-nb { background: #eef4f7; }
+.art.is-sel { background: var(--gruen-700); border-color: var(--gruen-700); color: #fff; }
+.art.is-sel small { color: rgba(255, 255, 255, .8); }
+
+.card-foot {
+  padding: 9px 13px;
+  background: #fbfcfa;
+  border-top: 1px solid var(--linie);
+  font-size: 11.5px;
+  color: var(--text-schwach);
+}
+.card-foot b { color: var(--text); font-weight: 600; }
+.card-foot .stgr-liste { margin-top: 4px; line-height: 1.7; word-break: break-word; }
+.card-foot .stgr-liste span { display: inline-block; margin-right: 4px; padding: 0 5px; border-radius: 4px; background: var(--sand-100); }
+
+.leer {
+  padding: 26px;
+  border: 1px dashed var(--linie);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text-schwach);
+  text-align: center;
+}
+
+.app-footer {
+  display: flex; flex-wrap: wrap; gap: 16px 24px;
+  align-items: flex-end; justify-content: space-between;
+  padding: 12px 20px 26px;
+  font-size: 11.5px;
+  color: var(--text-schwach);
+}
+.footer-text { display: flex; flex-direction: column; gap: 3px; }
+.footer-text a { color: var(--blau-600); }
+
+/* Logos unten rechts: assets/logo1.png … logo4.png */
+/* Rechtsbündig: kommt ein Logo dazu, rücken die anderen nach links. */
+.footer-logos {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.footer-logos img { max-height: 38px; max-width: 150px; display: block; }
+.logo-slot[hidden] { display: none !important; }
+
+/* --- Standortblatt (Druck) ------------------------------------------------ */
+
+.druckkopf { display: none; }
+
+@media print {
+  .splash, .app-header, .sidebar, .active-filters, .columns,
+  .viewer, .app-footer, .results-head,
+  .col-tools, .tile-doc { display: none !important; }
+
+  body { background: #fff; font-size: 9pt; }
+  .layout { display: block; }
+  .results { padding: 0; }
+
+  .druckkopf { display: block; margin-bottom: 6mm; }
+  .druckkopf h1 { font-size: 16pt; margin-bottom: 3mm; }
+  .druck-filter {
+    display: grid;
+    grid-template-columns: 30mm 1fr;
+    gap: .8mm 4mm;
+    margin: 0 0 3mm;
+    font-size: 9.5pt;
+  }
+  .druck-filter dt { font-weight: 650; }
+  .druck-filter dd { margin: 0; }
+  .druck-quelle { font-size: 8pt; color: #444; margin: 0; }
+
+  .bzt-cards { display: block; }
+  .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 4mm;
+    border: 1px solid #999;
+    border-radius: 2mm;
+    box-shadow: none;
+  }
+  .card-bild { cursor: default; }
+  .card-bild .thumb--breit { aspect-ratio: auto; height: 20mm; }
+  .card-head { background: #f0f0f0; padding: 2mm 3mm; }
+  .card-head h3 { font-size: 11pt; }
+  .card-head .sub { font-size: 8.5pt; }
+  .grp { padding: 1.6mm 3mm; }
+  .grp-head { font-size: 8pt; margin-bottom: 1mm; }
+  .arten { gap: 1mm; }
+  .art { border-color: #999; padding: .6mm 1.6mm; font-size: 8pt; }
+  .art i { font-size: 6.5pt; }
+  .art small { font-size: 7pt; }
+  .art.is-sel { background: #ddd !important; color: #000 !important; }
+  .art.is-sel i, .art.is-sel small { color: #000 !important; }
+  .card-foot { padding: 1.6mm 3mm; font-size: 8pt; }
+  .card-foot .stgr-liste { line-height: 1.5; }
+
+  /* Der Seitenverweis wird auf Papier zu reinem Text */
+  .btn--klein {
+    border: 0; background: none; padding: 0;
+    color: #000; font-size: 8.5pt;
+  }
+
+  @page { margin: 14mm; }
+}
+
+
+/* --- Seitenansicht (Overlay) --------------------------------------------- */
+
+body.hat-viewer { overflow: hidden; }
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(16, 30, 20, .72);
+}
+.viewer[hidden] { display: none; }
+
+.viewer-fenster {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: 100%;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .4);
+}
+
+.viewer-kopf {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 16px;
+  background: var(--gruen-900);
+  color: #fff;
+}
+.viewer-kopf h2 { font-size: 15px; }
+.viewer-kopf p { margin: 2px 0 0; font-size: 12px; opacity: .75; }
+.viewer-zu {
+  flex: none;
+  width: 30px; height: 30px;
+  border: 0; border-radius: 8px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff; font-size: 19px; line-height: 1;
+  cursor: pointer;
+}
+.viewer-zu:hover { background: rgba(255, 255, 255, .3); }
+
+.viewer-buehne {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+  background: #eceee9;
+  overflow: auto;
+  min-height: 240px;
+}
+.viewer-buehne img {
+  max-width: 100%;
+  max-height: calc(100vh - 220px);
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .18);
+  /* Wie bei den Kacheln: erst zeigen, wenn es etwas zu zeigen gibt. Beim
+     Blättern stand sonst kurz das Kaputt-Symbol oder noch das vorige Bild.
+     Die Regel muss hier stehen und nicht oben bei den anderen: sie ist
+     spezifischer als img.ist-geladen und würde sie sonst überstimmen. */
+  opacity: 0;
+  transition: opacity .12s linear;
+}
+.viewer-buehne img.ist-geladen { opacity: 1; }
+.viewer-hinweis {
+  max-width: 420px; margin: 0; padding: 20px;
+  font-size: 13px; color: var(--text-schwach); text-align: center;
+}
+
+.viewer-pfeil {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 36px; height: 52px;
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .92);
+  font-size: 22px; line-height: 1;
+  color: var(--gruen-900);
+  cursor: pointer;
+}
+#viewer-zurueck { left: 14px; }
+#viewer-weiter { right: 14px; }
+.viewer-pfeil:disabled { opacity: .28; cursor: default; }
+
+.viewer-fuss {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--linie);
+  font-size: 12.5px;
+  color: var(--text-schwach);
+}
+.viewer-fuss a { color: var(--blau-600); }
+
+@media (max-width: 560px) {
+  .viewer { padding: 0; }
+  .viewer-fenster { border-radius: 0; }
+  .viewer-pfeil { width: 30px; height: 44px; }
+}
+
+
+/* --- Grundgerüst mit Seitenleiste ---------------------------------------- */
+
+.layout { display: flex; align-items: flex-start; }
+.inhalt { flex: 1 1 auto; min-width: 0; }
+
+.sidebar {
+  position: sticky;
+  top: 62px;
+  flex: 0 0 var(--sidebar-breite);
+  width: var(--sidebar-breite);
+  align-self: stretch;
+  padding: 16px 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: flex-basis .18s ease, width .18s ease, opacity .15s ease;
+}
+
+.layout.ohne-sidebar .sidebar {
+  flex-basis: 0;
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+  overflow: hidden;
+}
+.karte > h2 {
+  padding: 9px 12px;
+  background: var(--gruen-900);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+}
+.karte-inhalt { padding: 9px 12px; display: flex; flex-direction: column; gap: 4px; }
+.karte-inhalt + .karte-inhalt { padding-top: 0; flex-direction: row; flex-wrap: wrap; }
+.karte-inhalt p { margin: 0; font-size: 12px; }
+.karte-inhalt b { font-weight: 650; }
+.karte-inhalt a { font-size: 11.5px; color: var(--gruen-600); text-decoration: none; }
+.karte-inhalt a:hover { text-decoration: underline; }
+.karte > footer {
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--linie);
+  font-size: 11px;
+  color: var(--text-schwach);
+}
+.logo-karte .karte-inhalt { padding: 11px 12px; }
+.sidebar-logos {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 12px;
+}
+.sidebar-logos img { max-height: 30px; max-width: 100%; display: block; }
+
+.sidebar-zahl {
+  margin-top: 4px !important;
+  padding-top: 5px;
+  border-top: 1px dashed var(--linie);
+  color: var(--text-schwach);
+}
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    position: static;
+    width: auto;
+    flex: none;
+    align-self: stretch;
+    padding: 12px 20px 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .sidebar .karte { flex: 1 1 220px; }
+  .layout.ohne-sidebar .sidebar { padding: 0; }
+}
+
+/* --- Startbild ------------------------------------------------------------ */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background: var(--gruen-700);
+  cursor: default;
+  transition: opacity .4s ease;
+}
+.splash[hidden] { display: none; }
+.splash.ist-bereit { cursor: pointer; }
+.splash.ist-weg { opacity: 0; pointer-events: none; }
+
+.splash-bild {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(760px, 88vw);
+  min-height: 200px;
+}
+.splash-bild img { max-width: 100%; max-height: 62vh; display: block; }
+
+.splash-ersatz { text-align: center; color: #fff; padding: 40px 20px; }
+.splash-ersatz[hidden] { display: none; }
+.splash-ersatz h1 {
+  margin: 0;
+  font-size: clamp(38px, 8vw, 74px);
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, .28);
+}
+.splash-ersatz p {
+  margin: 14px 0 0;
+  font-size: clamp(13px, 2vw, 17px);
+  letter-spacing: .04em;
+  opacity: .92;
+}
+.splash-linie {
+  display: block;
+  width: 130px; height: 2px;
+  margin: 22px auto 0;
+  background: rgba(255, 255, 255, .55);
+}
+
+.splash-fuss { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+.ladebalken {
+  width: min(300px, 60vw);
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .25);
+  overflow: hidden;
+}
+.ladebalken i {
+  display: block;
+  width: 4%;
+  height: 100%;
+  border-radius: 999px;
+  background: #fff;
+  transition: width 1.6s cubic-bezier(.4, .1, .25, 1);
+}
+
+.splash-hinweis {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: .05em;
+  color: rgba(255, 255, 255, .82);
+}
+.splash.ist-bereit .splash-hinweis { animation: pulsieren 1.8s ease-in-out infinite; }
+
+@keyframes pulsieren {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+
+/* ==========================================================================
+   LIGHT-VERSION (light.html)
+
+   Alles hier gilt nur für die geführte Fassung. Kacheln, Knöpfe und Farben
+   kommen aus den Abschnitten weiter oben – ergänzt werden der Schrittbalken,
+   die anklickbare Karte, der Feuchtegradient und die Baumartenliste.
+   ========================================================================== */
+
+.light {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 20px 40px;
+}
+
+/* --- Schrittbalken ------------------------------------------------------ */
+
+.schritte {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.schritte li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 8px;
+  border: 1px solid var(--linie);
+  border-radius: 999px;
+  background: var(--flaeche);
+  font-size: 13px;
+  color: var(--text-schwach);
+}
+.schritte li span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--linie);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+.schritte li.ist-aktiv {
+  border-color: var(--gruen-600);
+  background: var(--gruen-050);
+  color: var(--text);
+  font-weight: 600;
+}
+.schritte li.ist-aktiv span { background: var(--gruen-600); color: #fff; }
+.schritte li.ist-fertig span { background: var(--gruen-100); color: var(--gruen-700); }
+
+/* --- Abschnitte --------------------------------------------------------- */
+
+.light-schritt {
+  margin-bottom: 30px;
+  padding: 20px 22px 22px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+.light-schritt h2 {
+  margin: 0 0 6px;
+  font-size: 19px;
+  color: var(--gruen-900);
+}
+.light-lead { margin: 0 0 16px; font-size: 14px; color: var(--text-schwach); }
+.light-hinweis { margin: 14px 0 8px; font-size: 13px; color: var(--text-schwach); }
+.light-quelle { margin: 14px 0 0; font-size: 12px; color: var(--text-schwach); }
+.light-fussnote {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--linie);
+  font-size: 12.5px;
+  color: var(--text-schwach);
+}
+.light-aktionen { display: flex; gap: 10px; margin-top: 16px; }
+.light-aktionen .btn { background: var(--gruen-600); border-color: var(--gruen-600); color: #fff; }
+.light-aktionen .btn:hover { background: var(--gruen-700); }
+
+/* --- Schritt 1: Karte --------------------------------------------------- */
+
+.karte-buehne {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.karte-halter {
+  position: relative;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 8px;
+  cursor: crosshair;
+}
+.karte-halter img { display: block; width: 100%; height: auto; }
+
+/* Das Kreuz an der angeklickten Stelle */
+.karte-marke {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid #10202a;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .55);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .9);
+  pointer-events: none;
+}
+.karte-marke::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #10202a;
+}
+
+.karte-fehlt {
+  margin: 0;
+  padding: 24px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-schwach);
+  background: var(--sand-100);
+  border-radius: var(--radius);
+}
+
+.karte-befund {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--gruen-050);
+  border: 1px solid var(--gruen-100);
+  font-size: 14px;
+}
+.karte-befund strong { display: block; color: var(--gruen-900); }
+.karte-befund--leer { background: var(--sand-100); border-color: var(--linie); }
+.karte-befund-detail {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--text-schwach);
+}
+
+.klima-wahl { display: flex; flex-direction: column; gap: 8px; }
+.klima-knopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 7px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.klima-knopf:hover { border-color: var(--gruen-600); background: var(--gruen-050); }
+.klima-knopf.ist-gewaehlt {
+  border-color: var(--gruen-600);
+  background: var(--gruen-050);
+  box-shadow: inset 0 0 0 1px var(--gruen-600);
+}
+.klima-text { display: flex; flex-direction: column; min-width: 0; }
+.klima-text strong { font-size: 13.5px; }
+.klima-text span { font-size: 12px; color: var(--text-schwach); }
+
+/* --- Schritt 2: Feuchtegradient ---------------------------------------- */
+
+.seg--breit { display: inline-flex; margin-bottom: 18px; }
+
+.gradient { display: flex; flex-direction: column; gap: 14px; }
+
+.gradient-stufe {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--gruen-050);
+  border: 1px solid var(--gruen-100);
+}
+.gradient-kopf { display: flex; align-items: baseline; gap: 10px; margin-bottom: 9px; }
+.gradient-kopf b { font-size: 13.5px; color: var(--gruen-900); }
+.gradient-kopf span { font-size: 12.5px; color: var(--text-schwach); }
+
+.gradient-reihe { display: flex; flex-wrap: wrap; gap: 7px; }
+.gradient-knopf {
+  padding: 7px 13px;
+  border: 1px solid var(--linie);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  color: inherit;
+}
+.gradient-knopf:hover { border-color: var(--gruen-600); }
+.gradient-knopf.ist-gewaehlt {
+  background: var(--gruen-600);
+  border-color: var(--gruen-600);
+  color: #fff;
+  font-weight: 600;
+}
+
+#gradient-befund { font-size: 13.5px; color: var(--text); }
+
+/* Die Liste zur Direktwahl darf breiter laufen als die Profi-Spalte */
+.tiles--breit {
+  max-height: clamp(320px, 46vh, 560px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+.tiles--breit .tiles-group { grid-column: 1 / -1; }
+
+/* --- Schritt 3: Baumarten ---------------------------------------------- */
+
+.baumliste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.baum {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.baum--fuehrend { border-color: var(--gruen-600); background: var(--gruen-050); }
+
+.baum-text { min-width: 0; flex: 1; }
+.baum-text b { display: block; font-size: 14px; }
+.baum-text i { display: block; font-size: 11.5px; color: var(--text-schwach); }
+
+.baum-anteil { text-align: right; flex: none; }
+.baum-anteil b { display: block; font-size: 14.5px; color: var(--gruen-700); white-space: nowrap; }
+.baum-anteil span { display: block; font-size: 10.5px; color: var(--text-schwach); }
+
+.baumliste-mehr { margin-top: 14px; }
+.baumliste-mehr summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--gruen-700);
+  padding: 8px 0;
+}
+.baumliste-mehr[open] summary { margin-bottom: 10px; }
+
+/* --- Schmale Fenster ---------------------------------------------------- */
+
+@media (max-width: 820px) {
+  .karte-buehne { grid-template-columns: 1fr; }
+  .light { padding: 14px 12px 32px; }
+  .light-schritt { padding: 16px 14px 18px; }
+}
+
+/* --- Druck -------------------------------------------------------------- */
+
+@media print {
+  .light .schritte,
+  .light-aktionen,
+  #schritt-1,
+  #schritt-2 { display: none !important; }
+  .light-schritt { border: 0; box-shadow: none; padding: 0; }
+  .baumliste-mehr[open] summary { display: none; }
+  .baum { break-inside: avoid; }
+}
+
+
+/* ==========================================================================
+   INTERNE VERSION (intern.html)
+
+   Die Adressleiste sitzt über den vier Spalten; alles darunter ist
+   unverändert die Profi-Ansicht.
+   ========================================================================== */
+
+.modus-marke {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 7px 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .22);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+.adresse {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+
+.adresse-warnung {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: #fdf4e3;
+  border: 1px solid #e8d5a8;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #6a5322;
+}
+.adresse-warnung--fehlt { background: var(--sand-100); border-color: var(--linie); color: var(--text-schwach); }
+
+.adresse-zeile { display: flex; align-items: center; gap: 12px; }
+.adresse-zeile label { flex: none; font-size: 13px; font-weight: 600; }
+
+.adresse-feld { position: relative; flex: 1; min-width: 0; }
+.adresse-feld input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--linie);
+  border-radius: 7px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+.adresse-feld input:focus { outline: 2px solid var(--gruen-600); outline-offset: -1px; }
+.adresse-feld input:disabled { background: var(--grund); color: var(--text-schwach); }
+
+.adresse-liste {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(20, 40, 25, .16);
+}
+.adresse-vorschlag {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.adresse-vorschlag b { display: block; font-size: 13.5px; font-weight: 600; }
+.adresse-vorschlag span { display: block; font-size: 11.5px; color: var(--text-schwach); }
+.adresse-vorschlag:hover,
+.adresse-vorschlag.ist-markiert { background: var(--gruen-050); }
+
+.adresse-treffer {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 7px;
+  background: var(--gruen-050);
+  border: 1px solid var(--gruen-100);
+}
+.adresse-kopf { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.adresse-kopf b { font-size: 14px; color: var(--gruen-900); }
+.adresse-kopf span { font-size: 11.5px; color: var(--text-schwach); }
+
+.adresse-werte {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 14px;
+  margin: 9px 0 0;
+  font-size: 13px;
+}
+.adresse-werte dt { color: var(--text-schwach); }
+.adresse-werte dd { margin: 0; }
+
+.adresse-hinweis { margin: 9px 0 0; font-size: 12px; color: var(--text-schwach); }
+
+@media (max-width: 720px) {
+  .adresse-zeile { flex-wrap: wrap; }
+  .adresse-feld { flex-basis: 100%; }
+}
+
+@media print {
+  .adresse-liste, .adresse-zeile { display: none; }
+}
+
+/* Adressleiste: Forstamt-Auswahl und Stand des Datensatzes ---------------- */
+
+.adresse-amt {
+  flex: none;
+  max-width: 320px;
+  padding: 9px 10px;
+  border: 1px solid var(--linie);
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+}
+.adresse-amt:focus { outline: 2px solid var(--gruen-600); outline-offset: -1px; }
+.adresse-amt:disabled { background: var(--grund); color: var(--text-schwach); }
+
+.adresse-stand { margin: 8px 0 0; font-size: 11.5px; color: var(--text-schwach); }
+
+.adresse-marke {
+  padding: 1px 7px 2px;
+  border-radius: 999px;
+  background: #fdf4e3;
+  border: 1px solid #e8d5a8;
+  font-size: 11px;
+  color: #6a5322;
+}
+
+.adresse-kartierhinweis {
+  display: flex;
+  gap: 8px;
+  margin: 9px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-schwach);
+}
+.adresse-kartierhinweis strong { color: var(--text); font-weight: 600; }
+
+/* Veraltete oder unsichere Kartierung: Der Zieltyp beruht darauf, also
+   deutlich sichtbar und nicht als graue Fußnote. */
+.adresse-kartierhinweis--warnung {
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #fdf4e3;
+  border: 1px solid #e8d5a8;
+  color: #6a5322;
+}
+.adresse-kartierhinweis--warnung strong { color: #5a4415; }
+
+.adresse-kartierhinweis-zeichen { flex: none; font-size: 14px; line-height: 1.3; }
+.adresse-kartierhinweis-folge { display: block; margin-top: 2px; opacity: .85; }
+
+/* Legende zur grünen Hinterlegung in der Baumartenliste ------------------ */
+
+.baum-legende {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: var(--sand-100);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-schwach);
+}
+.baum-legende-feld {
+  flex: none;
+  width: 26px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 4px;
+  border: 1px solid var(--gruen-600);
+  background: var(--gruen-050);
+}
+.baum-legende strong { color: var(--text); font-weight: 600; }
+
+/* ==========================================================================
+   LIGHT – Mischung zusammenstellen
+
+   Die Baumartenkarten sind Schalter. Angeklickt kommt die Art in die
+   Mischung; danach zeigt die Liste nur noch, was sich damit in einem
+   Zieltyp zusammenbringen lässt, und die Anteile gelten für die Mischung.
+   ========================================================================== */
+
+.mischung {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--linie);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+}
+.mischung.ist-aktiv {
+  border-style: solid;
+  border-color: var(--gruen-600);
+  background: var(--gruen-050);
+}
+
+.mischung-arten { display: flex; flex-wrap: wrap; gap: 7px; }
+.mischung-arten:not(:empty) { margin-bottom: 9px; }
+
+.mischung-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--gruen-600);
+  border-radius: 999px;
+  background: var(--gruen-600);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mischung-chip b { font-weight: 600; }
+.mischung-chip span { font-size: 11.5px; opacity: .85; }
+.mischung-chip i { font-style: normal; font-size: 15px; line-height: 1; opacity: .8; }
+.mischung-chip:hover { background: var(--gruen-700); border-color: var(--gruen-700); }
+.mischung-chip:hover i { opacity: 1; }
+
+.mischung-text { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-schwach); }
+.mischung.ist-aktiv .mischung-text { color: var(--text); }
+
+/* Baumartenkarte als Schalter ------------------------------------------- */
+
+button.baum {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.baum:hover:not(:disabled) {
+  border-color: var(--gruen-600);
+  box-shadow: 0 1px 4px rgba(20, 40, 25, .1);
+}
+button.baum:focus-visible { outline: 2px solid var(--blau-600); outline-offset: 1px; }
+
+.baum--gewaehlt {
+  border-color: var(--gruen-600);
+  background: var(--gruen-600);
+}
+.baum--gewaehlt .baum-text b,
+.baum--gewaehlt .baum-anteil b { color: #fff; }
+.baum--gewaehlt .baum-text i,
+.baum--gewaehlt .baum-anteil span { color: rgba(255, 255, 255, .8); }
+
+.baum--raus {
+  opacity: .45;
+  filter: grayscale(.75);
+  cursor: not-allowed;
+}
+.baum--raus:hover { border-color: var(--linie); }
+
+.baumliste-mehr--raus summary { color: var(--text-schwach); }
+
+/* Fläche ohne Zuweisung: Nichtholzboden oder Standortgruppe außerhalb der
+   Zieltabelle. Dann wird kein Filter gesetzt – das muss deutlich sein. */
+
+.adresse-treffer--ohne { background: #fdf4e3; border-color: #e8d5a8; }
+.adresse-treffer--ohne .adresse-kopf b { color: #6a5322; }
+
+.adresse-ohne {
+  margin: 9px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #6a5322;
+}
+.adresse-ohne strong { color: #5a4415; }
+.adresse-ohne span { color: var(--text-schwach); }
+
+/* Eine Abteilung kann mehrere Standorte tragen – dann unterscheiden sich
+   zwei Vorschläge nur darin. Deshalb steht das Kürzel vorn und fett. */
+
+.adresse-stgr { font-weight: 650; color: var(--gruen-700); }
+
+.adresse-weitere {
+  margin: 9px 0 0;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: var(--grund);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-schwach);
+}
+.adresse-weitere strong { color: var(--text); font-weight: 600; }
+
+/* ==========================================================================
+   ALS APP AM TELEFON (PWA)
+
+   Auf dem Desktop ändert sich hier nichts. Am Telefon dagegen liegen die
+   vier Spalten sonst untereinander, und die dunkle Kopfleiste nimmt
+   dauerhaft Platz weg. Beides wird unten ab 820 px Breite umgestellt.
+   ========================================================================== */
+
+/* Installierknopf – erscheint nur, wenn der Browser ihn anbietet */
+.btn--install {
+  background: rgba(255, 255, 255, .92);
+  border-color: rgba(255, 255, 255, .92);
+  color: var(--gruen-900);
+  font-weight: 600;
+}
+.btn--install:hover { background: #fff; border-color: #fff; }
+
+/* Kopfleiste fährt beim Scrollen nach unten weg */
+.app-header { transition: transform .22s ease; }
+.app-header.ist-weg { transform: translateY(-100%); }
+
+/* Reiterleiste: auf dem Desktop nicht vorhanden */
+.spalten-reiter { display: none; }
+
+@media (max-width: 820px) {
+  .spalten-reiter {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin: 0 0 10px;
+    padding: 6px;
+    background: var(--grund);
+    border-bottom: 1px solid var(--linie);
+  }
+
+  .spalten-reiter-knopf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 2px 7px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--flaeche);
+    font: inherit;
+    color: var(--text-schwach);
+    cursor: pointer;
+    min-height: 46px;            /* bequem mit dem Daumen zu treffen */
+  }
+  .reiter-name { font-size: 11.5px; letter-spacing: -.01em; }
+  .reiter-zahl { font-size: 14px; font-weight: 650; color: var(--text); }
+
+  .spalten-reiter-knopf.ist-aktiv {
+    border-color: var(--gruen-600);
+    background: var(--gruen-050);
+    color: var(--gruen-900);
+  }
+  .spalten-reiter-knopf.ist-aktiv .reiter-zahl { color: var(--gruen-700); }
+
+  /* Eine Auswahl in einer nicht sichtbaren Spalte muss sichtbar bleiben */
+  .spalten-reiter-knopf.hat-auswahl::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--gruen-600);
+  }
+
+  /* Immer nur eine Spalte zeigen */
+  .columns { display: block; }
+  .col { display: none; }
+  .col.ist-aktiv { display: flex; }
+
+  /* Die Spalte darf die volle Höhe nutzen, es steht ja nichts daneben */
+  .tiles { max-height: none; }
+
+  /* Kopfleiste schlanker, damit sie nicht die halbe Seite füllt */
+  .app-header { padding: 9px 12px; gap: 8px; }
+  .brand small { display: none; }
+  .brand-mitte { display: none; }
+  .header-tools { gap: 6px; }
+  .header-tools .switch { display: none; }
+
+  .light { padding: 12px 10px 28px; }
+}
+
+/* Im installierten Zustand ist die Adresszeile weg – dann darf die
+   Kopfleiste den Platz unter der Statusleiste des Geräts mitnehmen. */
+@media (display-mode: standalone) {
+  .app-header { padding-top: calc(12px + env(safe-area-inset-top)); }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ==========================================================================
+   UMSCHALTER light / professional
+
+   Beide Ansichten stehen in derselben Seite und laufen gleichzeitig – der
+   Umschalter blendet nur um. Wer im geführten Ablauf einen Standort
+   gefunden hat, findet ihn drüben gesetzt vor, ohne Neuladen.
+   ========================================================================== */
+
+.ansicht-schalter {
+  border-color: rgba(255, 255, 255, .35);
+  background: rgba(255, 255, 255, .08);
+}
+.ansicht-schalter button {
+  padding: 7px 16px;
+  background: transparent;
+  color: rgba(255, 255, 255, .8);
+  font-size: 13px;
+}
+.ansicht-schalter button + button { border-left-color: rgba(255, 255, 255, .28); }
+.ansicht-schalter button:hover { color: #fff; }
+.ansicht-schalter button.is-on {
+  background: rgba(255, 255, 255, .94);
+  color: var(--gruen-900);
+  font-weight: 600;
+}
+
+/* Nur eine Ansicht zeigen. Ohne gesetztes Attribut gilt professional –
+   so bleibt die Seite auch ohne JavaScript brauchbar. */
+.ansicht--light { display: none; }
+:root[data-ansicht="light"] .ansicht--pro { display: none; }
+:root[data-ansicht="light"] .ansicht--light { display: block; }
+
+/* Werkzeuge, die nur zu einer Ansicht gehören */
+.nur-light { display: none; }
+:root[data-ansicht="light"] .nur-light { display: inline-flex; }
+:root[data-ansicht="light"] .nur-pro { display: none; }
+
+/* Karten der Seitenleiste sind Blöcke, keine Knöpfe */
+.karte.nur-pro { display: block; }
+
+/* Der Untertitel in der Kopfzeile ist ein Blockelement, kein Knopf */
+.brand small.nur-light { display: none; }
+:root[data-ansicht="light"] .brand small.nur-light { display: block; }
+:root[data-ansicht="light"] .brand small.nur-pro { display: none; }
+
+/* Die Seitenleiste bleibt in beiden Ansichten erreichbar – Kontakt und
+   Quellen gelten überall. Nur die Karte "Auswahl" mit CSV und Druck gehört
+   zur Profi-Ansicht; sie trägt .nur-pro.
+   Ausgeblendet war sie hier einmal komplett – dann stand oben ein ☰, das
+   nichts bewirkte. */
+:root[data-ansicht="light"] .karte.nur-pro { display: none; }
+
+/* Der geführte Ablauf steht in der gemeinsamen Seite ohne eigene
+   Außenabstände – die kommen jetzt von .inhalt. */
+:root[data-ansicht="light"] .light { max-width: none; padding: 0; }
+
+@media (max-width: 820px) {
+  .ansicht-schalter button { padding: 6px 11px; font-size: 12px; }
+  /* Reiterleiste gehört zur Profi-Ansicht */
+  :root[data-ansicht="light"] .spalten-reiter { display: none; }
+}
+
+/* ==========================================================================
+   INTERNE ANSICHT: Anmeldung
+
+   Forstamt + eines seiner Reviere. Solange nicht angemeldet, bleiben die
+   vier Spalten verborgen und das Verzeichnis der Forstämter ist gar nicht
+   erst geladen.
+   ========================================================================== */
+
+.ansicht--intern { display: none; }
+:root[data-ansicht="intern"] .ansicht--intern { display: block; }
+:root[data-ansicht="intern"] .ansicht--light { display: none; }
+/* Angemeldet: die Spalten kommen dazu. Vorher nicht. */
+:root[data-ansicht="intern"] .ansicht--pro { display: none; }
+:root[data-ansicht="intern"][data-intern="frei"] .ansicht--pro { display: block; }
+:root[data-ansicht="intern"]:not([data-intern="frei"]) .spalten-reiter { display: none; }
+:root[data-ansicht="intern"]:not([data-intern="frei"]) .sidebar { display: none; }
+:root[data-ansicht="intern"]:not([data-intern="frei"]) .layout { display: block; }
+
+.anmeldung {
+  max-width: 26rem;
+  margin: 8vh auto 0;
+  padding: 24px 26px 22px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  box-shadow: var(--schatten);
+}
+.anmeldung h2 { margin: 0 0 6px; font-size: 18px; color: var(--gruen-900); }
+.anmeldung-text { margin: 0 0 18px; font-size: 13.5px; color: var(--text-schwach); }
+.anmeldung-text strong { color: var(--text); }
+
+.anmeldung label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.anmeldung input {
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--linie);
+  border-radius: 7px;
+  font: inherit;
+  font-size: 14px;
+  background: #fff;
+}
+.anmeldung input:focus { outline: 2px solid var(--gruen-600); outline-offset: -1px; }
+
+.btn--voll {
+  width: 100%;
+  justify-content: center;
+  background: var(--gruen-600);
+  border-color: var(--gruen-600);
+  color: #fff;
+  font-weight: 600;
+  padding: 10px;
+}
+.btn--voll:hover:not(:disabled) { background: var(--gruen-700); border-color: var(--gruen-700); }
+.btn--voll:disabled { opacity: .6; cursor: default; }
+
+.anmeldung-fehler {
+  margin: -4px 0 14px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #fdecea;
+  border: 1px solid #f0c2bc;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #8a2b1e;
+}
+
+.anmeldung-hinweis {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--linie);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-schwach);
+}
