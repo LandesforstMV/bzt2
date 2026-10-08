@@ -16,6 +16,13 @@
     "productivity",
     "utilities"
   ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "./manifest.webmanifest"
+    }
+  ],
   "icons": [
     {
       "src": "assets/icon-192.png",

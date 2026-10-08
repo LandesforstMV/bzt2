@@ -463,7 +463,7 @@
     var m = new Map();
     b.gruppen.forEach(function (g) {
       g.arten.forEach(function (a) {
-        if (!m.has(a)) m.set(a, { rang: g.rang, max: g.max || 0 });
+        if (!m.has(a)) m.set(a, { rang: g.rang, min: g.min || 0, max: g.max || 0 });
       });
     });
     return m;
@@ -471,20 +471,49 @@
 
   /**
    * Werte je Baumart über eine Menge von Kombinationen.
+   * min  = niedrigster Anteil, mit dem sie in einem dieser Zieltypen vorkommt
    * max  = höchster Anteil in einem dieser Zieltypen
    * rang = bester Rang (1 = führende Baumart)
+   *
+   * Der Erlass gibt je Baumartengruppe eine Spanne an ("50-70 %"), nicht
+   * einen festen Wert. Bisher wurde nur das obere Ende gelesen; damit stand
+   * überall "bis 60 %" und die untere Grenze war unsichtbar, obwohl sie in
+   * den Daten steht.
    */
   function artStatistik(rows) {
     var stat = new Map();
     rows.forEach(function (r) {
       artenJeBzt[r[2]].forEach(function (info, code) {
         var e = stat.get(code);
-        if (!e) { e = { code: code, max: 0, rang: 9 }; stat.set(code, e); }
-        if (info.max > e.max) e.max = info.max;
+        if (!e) { e = { code: code, min: 0, max: 0, rang: 9 }; stat.set(code, e); }
+        // ⚠️ min gehört zu dem max, das daneben steht – beide stammen aus
+        // DERSELBEN Baumartengruppe. Das global kleinste min zu nehmen war
+        // falsch: Fast jede Baumart ist irgendwo auch Mischbaumart, und
+        // jene Gruppen fangen bei 0 an. Dann stand überall "0–80 %", also
+        // wieder keine Aussage. Jetzt: die Spanne der Gruppe, in der die
+        // Baumart ihren höchsten Anteil erreicht.
+        if (info.max > e.max) { e.max = info.max; e.min = info.min; }
+        else if (info.max === e.max && info.min < e.min) { e.min = info.min; }
         if (info.rang < e.rang) e.rang = info.rang;
       });
     });
     return stat;
+  }
+
+  /**
+   * Angezeigt wird nur der Höchstanteil.
+   *
+   * ⚠️ Nicht auf "min–max" zurückbauen. Die Spanne einer Baumartengruppe
+   * ist erst dann eine Aussage, wenn EIN Bestockungszieltyp gewählt ist –
+   * dort heißt "40–60 %", dass die Art in diesem Zieltyp mindestens 40 %
+   * tragen muss. Hier steht aber der beste Fall über alle möglichen
+   * Zieltypen hinweg; ein Minimum daraus ist keine Untergrenze, die
+   * irgendwo gilt. Es stand einmal als Spanne da und war irreführend.
+   *
+   * `min` bleibt in den Daten – für die Zieltyp-Ansicht, wo es hingehört.
+   */
+  function spanne(a) {
+    return "bis " + a.max + " %";
   }
 
   // Nur die Zieltypen, die alle gewählten Baumarten zugleich enthalten.
@@ -507,6 +536,7 @@
       abschnitt.hidden = true;
       schrittLeiste(2);
       abgleichen();          // Klimastufe allein soll auch schon greifen
+      melden(null);
       return;
     }
 
@@ -533,6 +563,7 @@
         // Baumart dazu, fallen Zieltypen weg und der Höchstanteil der
         // übrigen sinkt oft.
         max: jetzt ? jetzt.max : e.max,
+        min: jetzt ? jetzt.min : e.min,
         rang: jetzt ? jetzt.rang : e.rang
       });
     });
@@ -576,7 +607,78 @@
     abschnitt.hidden = false;
     schrittLeiste(3);
     abgleichen();
+    // Die Zieltypen, die auf diesem Standort überhaupt möglich sind – nicht
+    // die der aktuellen Mischung. Schritt 4 stellt einen Zielbestand
+    // zusammen und fragt danach, welchem Zieltyp er entspricht; dafür muss
+    // die ganze Auswahl offen stehen.
+    var bztIdx = [];
+    alleRows.forEach(function (r) {
+      if (bztIdx.indexOf(r[2]) === -1) bztIdx.push(r[2]);
+    });
+
+    melden({
+      kli: zustand.kli, stgr: zustand.stgr.slice(),
+      arten: arten, bzts: bztIdx.sort(function (x, y) { return x - y; })
+    });
   }
+
+  /* --- Schnittstelle für bestand.js ------------------------------------- *
+   *
+   * Schritt 4 braucht dieselbe Baumartenliste, die hier gerade gezeichnet
+   * wurde – mit Rang und Spanne. Statt sie dort ein zweites Mal zu
+   * berechnen (und beim nächsten Umbau auseinanderzulaufen), wird sie
+   * durchgereicht. Dasselbe Muster wie window.BZT_KERN in app.js: nur das
+   * Nötige nach außen, sonst nichts.
+   *
+   * null heißt: Es gibt gerade kein Ergebnis – Schritt 4 muss sich dann
+   * ebenfalls zurückziehen.
+   * ---------------------------------------------------------------------- */
+
+  var horcher = [];
+
+  function melden(stand) {
+    horcher.forEach(function (fn) {
+      try { fn(stand); } catch (e) { /* ein Horcher darf light nicht reißen */ }
+    });
+  }
+
+  window.BZT_LIGHT = {
+    horchen: function (fn) { horcher.push(fn); },
+    // Damit "Von vorn beginnen" auch Schritt 4 leert.
+    beimZuruecksetzen: [],
+
+    /**
+     * Den Standort herausgeben und wieder annehmen.
+     *
+     * Gebraucht für das Sichern einer Aufnahme: Ein erfasster Bestand ohne
+     * seinen Standort ist wertlos – die Höchstanteile, die Ränge und die
+     * möglichen Zieltypen hängen alle daran. Deshalb gehört beides in
+     * dieselbe Datei, und deshalb muss light.js seinen Zustand hergeben.
+     */
+    standLesen: function () {
+      return {
+        kli: zustand.kli,
+        gradient: JSON.parse(JSON.stringify(zustand.gradient)),
+        stgr: zustand.stgr.slice(),
+        stgrModus: zustand.stgrModus,
+        mischung: zustand.mischung.slice()
+      };
+    },
+
+    standSetzen: function (o) {
+      if (!o || !o.kli) return false;
+      zustand.gradient = o.gradient || {};
+      zustand.stgr = (o.stgr || []).slice();
+      zustand.stgrModus = o.stgrModus || "gefuehrt";
+      zustand.mischung = (o.mischung || []).slice();
+      // Dieselben Funktionen wie ein Klick – nicht die Anzeige von Hand
+      // nachbauen, sonst laufen Zustand und Bild auseinander.
+      klimaWahlSetzen(o.kli, true);
+      gradientAufbauen();
+      gradientAuswerten();
+      return true;
+    }
+  };
 
   /* --- Hinüber in die Profi-Ansicht ------------------------------------- *
    *
@@ -623,19 +725,26 @@
       chip.type = "button";
       chip.title = "aus der Mischung nehmen";
       chip.appendChild(el("b", null, a.art.name));
-      chip.appendChild(el("span", null, "bis " + a.max + " %"));
+      chip.appendChild(el("span", null, spanne(a)));
       chip.appendChild(el("i", null, "×"));
       chip.addEventListener("click", function () { mischungUmschalten(a.art.code); });
       chips.appendChild(chip);
     });
 
-    var summe = gewaehlt.reduce(function (n, a) { return n + a.max; }, 0);
+    // ⚠️ Hier stand einmal die Summe der Höchstanteile ("zusammen bis
+    // 640 %"). Das war eine Zahl ohne Bedeutung: Der Erlass gibt je
+    // BAUMARTENGRUPPE eine Spanne an, und die Baumarten einer Gruppe sind
+    // Alternativen zueinander – sie teilen sich diese Spanne, statt ihre
+    // Anteile zu addieren. Wer 16 Arten wählt, bekommt keinen Bestand mit
+    // 640 %, sondern eine Auswahl, aus der ein Bestand mit 100 % entsteht.
+    // Nicht wieder aufaddieren.
     text.textContent = gewaehlt.length === 1
       ? "Eine Baumart gewählt. Die Liste unten zeigt jetzt nur noch, was " +
         "sich damit mischen lässt" +
         (ausgeschlossen ? " – " + ausgeschlossen + " fallen weg." : ".")
-      : gewaehlt.length + " Baumarten gewählt, zusammen bis " + summe + " %. " +
-        "Die Höchstanteile gelten für diese Mischung" +
+      : gewaehlt.length + " Baumarten gewählt. Die Spannen gelten je " +
+        "Baumart und lassen sich nicht addieren – Arten derselben " +
+        "Baumartengruppe sind Alternativen zueinander" +
         (ausgeschlossen ? "; " + ausgeschlossen + " Baumarten passen nicht dazu." : ".");
   }
 
@@ -682,7 +791,7 @@
       t.appendChild(el("i", null, a.art.lat));
       karte.appendChild(t);
       var wert = el("div", "baum-anteil");
-      wert.appendChild(el("b", null, a.moeglich ? "bis " + a.max + " %" : "–"));
+      wert.appendChild(el("b", null, a.moeglich ? spanne(a) : "–"));
       wert.appendChild(el("span", null,
         a.moeglich ? (RANG_TEXT[a.rang] || "") : "nicht mischbar"));
       karte.appendChild(wert);
@@ -742,6 +851,8 @@
     id("stgr-suche").value = "";
     schrittLeiste(1);
     abgleichen();
+    melden(null);
+    window.BZT_LIGHT.beimZuruecksetzen.forEach(function (fn) { fn(); });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

@@ -28,7 +28,7 @@
    den alten Vorrat und die Änderung kommt nie an.
    ========================================================================== */
 
-var VERSION = "bastaklim-v5";
+var VERSION = "bastaklim-v26";
 var RUMPF_VORRAT = VERSION + "-rumpf";
 var LAUFEND_VORRAT = VERSION + "-laufend";
 
@@ -42,6 +42,7 @@ var RUMPF = [
   "./app.js",
   "./light.js",
   "./data/bzt_data.js",
+  "./data/bilder.js",
   "./data/klimaraster.js",
   "./assets/klimastufe/karte.png",
   "./assets/icon-192.png",
@@ -49,8 +50,19 @@ var RUMPF = [
   "./manifest.webmanifest"
 ];
 
-// Nicht in den Vorrat: zu groß und selten gebraucht.
+// ⚠️ assets/BASTAKLIM_logo_qr.png steht bewusst NICHT im Rumpf: Der
+// QR-Code wird beim Veroeffentlichen abgelegt und liegt nicht in jedem
+// Stand; stuende er hier, kostete er bei jeder Installation eine
+// vergebliche Anfrage. Gebraucht wird er nur in der Teilen-Karte der
+// Seitenleiste – dorthin kommt er ueber den laufenden Vorrat, sobald er
+// zum ersten Mal gezeigt wird. Wer ihn auch ohne Netz haben will,
+// drueckt "Fuer offline vorbereiten"; dort sind die Einzelbilder dabei.
+
+// Nicht in den laufenden Vorrat: zu groß und selten gebraucht. Die PDFs
+// kommen nur in den Vorrat, wenn jemand "Für offline vorbereiten" drückt
+// (app.js, Vorrat "bastaklim-offline").
 var NIE_SPEICHERN = /\/dokumente\//;
+var OFFLINE_VORRAT = "bastaklim-offline";
 
 self.addEventListener("install", function (ev) {
   ev.waitUntil(
@@ -68,7 +80,7 @@ self.addEventListener("activate", function (ev) {
   ev.waitUntil(
     caches.keys().then(function (namen) {
       return Promise.all(namen.filter(function (n) {
-        return n.indexOf("bastaklim-") === 0 &&
+        return n.indexOf("bastaklim-") === 0 && n !== OFFLINE_VORRAT &&
                n !== RUMPF_VORRAT && n !== LAUFEND_VORRAT;
       }).map(function (n) { return caches.delete(n); }));
     }).then(function () { return self.clients.claim(); })
@@ -81,16 +93,43 @@ self.addEventListener("fetch", function (ev) {
 
   var url = new URL(anfrage.url);
   if (url.origin !== self.location.origin) return;
-  if (NIE_SPEICHERN.test(url.pathname)) return;
+  // PDFs: erst Netz, ohne Netz aus dem Offline-Vorrat (falls vorbereitet)
+  if (NIE_SPEICHERN.test(url.pathname)) {
+    ev.respondWith(
+      fetch(anfrage).catch(function () {
+        return caches.match(anfrage, { ignoreSearch: true }).then(function (t) {
+          return t || Response.error();
+        });
+      })
+    );
+    return;
+  }
 
   // Seitenaufrufe: erst Netz, dann Vorrat. So kommt eine neue Fassung an,
   // sobald es Netz gibt, und offline zeigt sie trotzdem etwas.
   if (anfrage.mode === "navigate") {
     ev.respondWith(
       fetch(anfrage).then(function (antwort) {
-        var kopie = antwort.clone();
-        caches.open(RUMPF_VORRAT).then(function (v) { v.put(anfrage, kopie); });
-        return antwort;
+        // ⚠️ NUR gelungene Antworten in den Vorrat. Eine Fehlerseite ist
+        // auch eine Antwort: Ohne diese Pruefung ueberschrieb die erste
+        // davon die gespeicherte Startseite – und stuende danach auch
+        // ohne Netz in der App. Zwei Faelle, die wirklich vorkommen:
+        // das Verzeichnis wird privat gestellt ("There isn't a GitHub
+        // Pages site here"), und die Drosselung ("Rate limit exceeded"),
+        // die es hier schon einmal gab.
+        if (antwort && antwort.ok) {
+          var kopie = antwort.clone();
+          caches.open(RUMPF_VORRAT).then(function (v) { v.put(anfrage, kopie); });
+          return antwort;
+        }
+        // Fehlerseite: lieber die letzte gute Fassung zeigen. Ist keine
+        // da, bleibt nur die Fehlerseite selbst.
+        return caches.match(anfrage).then(function (t) {
+          if (t) return t;
+          return caches.match("./index.html").then(function (s) {
+            return s || antwort;
+          });
+        });
       }).catch(function () {
         return caches.match(anfrage).then(function (t) {
           return t || caches.match("./index.html");

@@ -323,7 +323,8 @@ code {
    Ersatzmotiv verschwinden muss. */
 .thumb img,
 .splash-bild img,
-.logo-slot img {
+.logo-slot img,
+#teilen-qr-bild {
   opacity: 0;
   transition: opacity .12s linear;
 }
@@ -557,6 +558,47 @@ img.ist-geladen { opacity: 1; }
 .footer-logos img { max-height: 38px; max-width: 150px; display: block; }
 .logo-slot[hidden] { display: none !important; }
 
+/* Teilen: QR-Code in der Seitenleiste.
+
+   Der weiße Grund und das Polster sind nicht Zierde, sondern Bedingung:
+   Ein QR-Code braucht rundum eine ruhige helle Fläche, sonst findet die
+   Kamera seine Ränder nicht. Die mitgelieferte PNG bringt das meist selbst
+   mit – hier steht es noch einmal, damit es auch bei einem knapp
+   beschnittenen Bild stimmt. */
+.qr-knopf {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--linie);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.qr-knopf:hover { border-color: var(--gruen-900); }
+.qr-knopf[hidden] { display: none !important; }
+#teilen-qr-bild { display: block; width: 100%; height: auto; }
+/* ⚠️ Muss sein: #teilen-qr-bild oben ist eine ID (1,0,0) und schlaegt
+   img.ist-geladen (0,1,1). Ohne diese Zeile bleibt der QR-Code auf
+   opacity: 0 und die Kachel ist leer – genau das ist passiert. */
+#teilen-qr-bild.ist-geladen { opacity: 1; }
+.qr-text {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-schwach);
+}
+.qr-text[hidden] { display: none !important; }
+#sidebar-teilen[hidden] { display: none !important; }
+.teilen-adresse {
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: #fff;
+}
+
 /* --- Standortblatt (Druck) ------------------------------------------------ */
 
 .druckkopf { display: none; }
@@ -571,6 +613,28 @@ img.ist-geladen { opacity: 1; }
   .results { padding: 0; }
 
   .druckkopf { display: block; margin-bottom: 6mm; }
+
+  /* Schritt 4 wird mitgedruckt, wenn er angehakt ist – sonst gar nicht.
+     Beides ist gewollt: Für viele ist die Liste der möglichen Baumarten
+     schon das fertige Blatt, und dafür darf kein leerer Abschnitt
+     mitlaufen. Regler und Auswahlfelder sind auf Papier sinnlos; stehen
+     bleiben die Zahlen, die Balken und das Fazit. */
+  :root[data-bestand="aus"] #schritt-4 { display: none !important; }
+  .bestand-schalter, .schicht-wahl, #soll-zusatz-wahl,
+  .schicht-weg, .bestand-regler { display: none !important; }
+
+  .bestand-karte {
+    border: 1px solid #ccc;
+    padding: 4mm 5mm;
+    margin-bottom: 4mm;
+    break-inside: avoid;
+  }
+  .schichten { gap: 3mm; }
+  .schicht { background: none; border: 1px solid #ddd; padding: 3mm; }
+  .schicht-zeile { margin-bottom: 2mm; }
+  .wf-zeile, .dia-zeile { break-inside: avoid; }
+  .wf-spur, .dia-balken { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .dia-teil, .wf-balken { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .druckkopf h1 { font-size: 16pt; margin-bottom: 3mm; }
   .druck-filter {
     display: grid;
@@ -1139,14 +1203,219 @@ body.hat-viewer { overflow: hidden; }
 .baum-anteil b { display: block; font-size: 14.5px; color: var(--gruen-700); white-space: nowrap; }
 .baum-anteil span { display: block; font-size: 10.5px; color: var(--text-schwach); }
 
+/* Aufklapper unter der Baumartenliste.
+
+   ⚠️ Sie waren einmal nur eine kleine Textzeile mit ▸ davor und wurden
+   übersehen – wer zum ersten Mal hersieht, hält die obere Reihe für die
+   ganze Antwort, obwohl darunter oft mehr Baumarten stecken als darüber.
+   Deshalb jetzt eine sichtbare Fläche mit Rahmen, Zahl und einem Pfeil,
+   der sich dreht. Nicht wieder auf eine nackte Textzeile zurückbauen. */
 .baumliste-mehr { margin-top: 14px; }
 .baumliste-mehr summary {
   cursor: pointer;
-  font-size: 13px;
-  color: var(--gruen-700);
-  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gruen-900);
+  padding: 11px 14px;
+  border: 1px solid var(--gruen-700);
+  border-radius: 9px;
+  background: var(--gruen-050, #eef4ee);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
-.baumliste-mehr[open] summary { margin-bottom: 10px; }
+.baumliste-mehr summary::-webkit-details-marker { display: none; }
+.baumliste-mehr summary::before {
+  content: "▸";
+  font-size: 12px;
+  transition: transform .15s ease;
+}
+.baumliste-mehr[open] summary::before { transform: rotate(90deg); }
+.baumliste-mehr summary:hover { background: #e3ece3; }
+.baumliste-mehr summary:focus-visible {
+  outline: 2px solid var(--gruen-900);
+  outline-offset: 2px;
+}
+.baumliste-mehr[open] summary { margin-bottom: 12px; }
+
+/* Die Nichtpassenden ruhiger: grauer Rahmen, kein grüner Grund – sie sind
+   eine Auskunft, keine Einladung. */
+.baumliste-mehr--raus summary {
+  color: var(--text-schwach);
+  border-color: var(--linie);
+  background: var(--sand-100, #f4f2ec);
+  font-weight: 500;
+}
+.baumliste-mehr--raus summary:hover { background: #ece9e0; }
+
+/* --- Schritt 4: Bestand aufnehmen und umbauen ---------------------------- */
+
+.bestand-schalter {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--gruen-700); border-radius: 10px;
+  background: var(--gruen-050); cursor: pointer; margin-bottom: 18px;
+}
+.bestand-schalter input { margin-top: 3px; width: 17px; height: 17px; flex: none; }
+.bestand-schalter strong { display: block; font-size: 14px; color: var(--gruen-900); }
+.bestand-schalter small {
+  display: block; margin-top: 3px; font-size: 12.5px; color: var(--text-schwach);
+}
+
+.bestand-karte {
+  border: 1px solid var(--linie); border-radius: 12px;
+  padding: 18px 20px 20px; margin-bottom: 18px; background: #fff;
+}
+.bestand-karte h3 { margin: 0 0 6px; font-size: 16px; color: var(--gruen-900); }
+.bestand-karte h4 { margin: 16px 0 4px; font-size: 13.5px; color: var(--gruen-900); }
+
+/* Ringdiagramm. Steht immer auf 100 %: Was die Baumarten nicht belegen,
+   bleibt als heller Rest stehen – so ist die freie Fläche sichtbar, ohne
+   dass man eine Summe lesen muss. */
+.ring { width: 132px; height: 132px; display: block; margin: 6px auto 10px; }
+.ring-zahl { font-size: 19px; font-weight: 700; fill: var(--gruen-900); }
+.ring-unten { font-size: 10px; fill: var(--text-schwach); }
+
+.schichten { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.schicht {
+  flex: 1 1 250px; border: 1px solid var(--linie); border-radius: 10px;
+  padding: 12px 14px 14px; background: var(--sand-100);
+  display: flex; flex-direction: column;
+}
+.schicht h4 { margin: 0; font-size: 13.5px; color: var(--gruen-900); }
+.schicht-hinweis { margin: 2px 0 0; font-size: 11.5px; color: var(--text-schwach); }
+.schicht-arten { flex: 1 1 auto; }
+.schicht-zeile { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+.schicht-punkt {
+  width: 10px; height: 10px; border-radius: 3px; flex: none;
+}
+.schicht-name { flex: 1 1 auto; font-size: 12.5px; }
+.schicht-leer { margin: 6px 0; font-size: 12px; color: var(--text-schwach); }
+.schicht-plus { margin-top: 8px; align-self: flex-start; }
+
+/* Stufer: − Wert + . Ein Regler bräuchte hier mehr Platz, als die Spalte
+   hat, und trifft 5-%-Schritte schlechter als zwei Knöpfe. */
+.stufer { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.stufer-knopf {
+  width: 22px; height: 22px; border: 1px solid var(--linie); border-radius: 5px;
+  background: #fff; cursor: pointer; font-size: 14px; line-height: 1;
+  color: var(--gruen-900);
+}
+.stufer-knopf:hover:not(:disabled) { border-color: var(--gruen-700); background: var(--gruen-050); }
+.stufer-knopf:disabled { opacity: .35; cursor: default; }
+.stufer-wert {
+  min-width: 42px; text-align: center; font-size: 12.5px; color: var(--gruen-900);
+}
+
+/* Baumartenauswahl – dieselben Karten wie in der Liste oben */
+.baumwahl {
+  margin-top: 16px; padding: 14px 16px 16px;
+  border: 1px solid var(--gruen-700); border-radius: 10px;
+  background: var(--gruen-050);
+}
+.baumwahl h4 { margin: 0 0 4px; }
+.baumwahl-titel {
+  margin: 14px 0 6px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-schwach);
+}
+.baum--fremd { opacity: .72; }
+.baum--fremd .baum-anteil b { color: var(--text-schwach); }
+
+/* SOLL */
+.soll-oben { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.soll-oben .soll-ring { flex: 0 0 auto; }
+.soll-liste { flex: 1 1 320px; }
+.soll-zeile { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.soll-text { flex: 1 1 auto; }
+.soll-text b { display: block; font-size: 13.5px; }
+.soll-rang { font-size: 11.5px; color: var(--text-schwach); }
+#soll-dazu { width: 100%; max-width: 380px; margin-top: 12px; font-size: 12.5px; }
+.soll-summe { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; }
+.soll-summe.ist-gut { background: var(--gruen-050); color: var(--gruen-900); }
+.soll-summe.ist-offen { background: #fdf3e0; color: #7a5210; }
+.bestand-warnung {
+  padding: 10px 12px; border-radius: 8px;
+  background: #fdf0ec; color: #7d3720; border: 1px solid #e8c4b8;
+}
+
+/* Aufnahme sichern */
+.aufnahme-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.aufnahme-laden { position: relative; overflow: hidden; cursor: pointer; }
+.aufnahme-laden input {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+}
+#aufnahme-stand { margin-top: 10px; }
+
+/* Welchem Zieltyp entspricht der Zielbestand? */
+.zieltyp-kopf {
+  display: flex; gap: 14px; align-items: center;
+  padding: 12px 14px; border: 1px solid var(--linie); border-radius: 10px;
+  background: var(--sand-100); margin-bottom: 14px;
+}
+.zieltyp-kopf.ist-genau { border-color: var(--gruen-700); background: var(--gruen-050); }
+.zieltyp-kopf .thumb--breit { flex: 0 0 120px; }
+.zieltyp-text { min-width: 0; }
+.zieltyp-text b { display: block; font-size: 15px; color: var(--gruen-900); }
+.zieltyp-nr { display: block; font-size: 11.5px; color: var(--text-schwach); margin-top: 2px; }
+.zieltyp-urteil { display: block; font-size: 12.5px; margin-top: 5px; }
+
+.zieltyp-gruppe {
+  display: grid;
+  grid-template-columns: 165px 1fr 58px;
+  gap: 2px 10px; align-items: baseline;
+  padding: 9px 0; border-top: 1px solid var(--linie);
+}
+.zg-rang { font-size: 12px; font-weight: 600; color: var(--gruen-900); }
+.zg-arten { font-size: 12.5px; }
+.zg-wert { text-align: right; font-size: 13.5px; color: var(--gruen-900); }
+.zg-soll { grid-column: 2 / 4; font-size: 11.5px; color: var(--text-schwach); }
+.zg-soll.ist-fehler { color: #a8442e; }
+
+.zieltyp-fremd {
+  margin-top: 14px; padding: 10px 12px; border-radius: 8px;
+  background: #fdf3e0; color: #7a5210;
+}
+.zieltyp-weitere { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--linie); }
+.zieltyp-weitere h5 {
+  margin: 0 0 6px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-schwach);
+}
+.zieltyp-weitere p { margin: 3px 0; font-size: 12.5px; color: var(--text-schwach); }
+
+/* Wasserfall: eine Zeile je Baumart, Mitte = keine Änderung */
+.wasserfall { margin-top: 12px; }
+.wf-zeile {
+  display: grid; grid-template-columns: 14px 150px 1fr 66px;
+  align-items: center; gap: 3px 9px; margin-bottom: 9px;
+}
+.wf-name { font-size: 12.5px; }
+.wf-spur { position: relative; height: 20px; background: #f2f4f1; border-radius: 4px; }
+.wf-spur::before {
+  content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px;
+  width: 1px; background: var(--linie);
+}
+.wf-balken { position: absolute; top: 3px; height: 14px; border-radius: 3px; }
+.wf-minus { background: #a8442e; }
+.wf-plus { background: #4a7c59; }
+.wf-wert { text-align: right; font-size: 13px; color: var(--gruen-700); }
+.wf-wert--minus { color: #a8442e; }
+.wf-wert--gleich { color: var(--text-schwach); font-weight: 500; }
+.wf-sub {
+  grid-column: 3 / 5; font-size: 11px; color: var(--text-schwach); margin-top: -3px;
+}
+.wf-vorbemerkung {
+  margin: 0 0 14px; padding: 9px 12px; border-radius: 8px;
+  background: #fdf3e0; color: #7a5210;
+}
+.wf-kunst {
+  margin: 14px 0 0; padding: 10px 12px; border-radius: 8px;
+  background: #eef2f8; color: #2c4a6b; border: 1px solid #c9d8e8;
+}
+.wf-fazit {
+  margin: 14px 0 0; padding: 10px 12px; border-radius: 8px;
+  background: var(--sand-100); font-size: 12.5px; line-height: 1.5;
+}
 
 /* --- Schmale Fenster ---------------------------------------------------- */
 
@@ -1438,7 +1707,6 @@ button.baum:focus-visible { outline: 2px solid var(--blau-600); outline-offset: 
 }
 .baum--raus:hover { border-color: var(--linie); }
 
-.baumliste-mehr--raus summary { color: var(--text-schwach); }
 
 /* Fläche ohne Zuweisung: Nichtholzboden oder Standortgruppe außerhalb der
    Zieltabelle. Dann wird kein Filter gesetzt – das muss deutlich sein. */
@@ -1709,3 +1977,126 @@ button.baum:focus-visible { outline: 2px solid var(--blau-600); outline-offset: 
   line-height: 1.6;
   color: var(--text-schwach);
 }
+
+/* --- Hinweis zum Installieren auf iPhone und iPad ------------------------- *
+
+   Safari kennt "beforeinstallprompt" nicht, bietet also von sich aus keine
+   Installation an. Der Knopf erscheint dort trotzdem und oeffnet diese
+   Anleitung. Kein eigenes Dialog-Element: <dialog> wird auf aelteren iOS
+   nicht unterstuetzt, und genau dort wird der Hinweis gebraucht.
+   ------------------------------------------------------------------------- */
+.ios-hinweis {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(12, 24, 16, .55);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px;
+}
+.ios-hinweis[hidden] { display: none; }
+.ios-karte {
+  position: relative;
+  width: 100%; max-width: 420px;
+  background: #fff; border-radius: 16px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .3);
+}
+.ios-zu {
+  position: absolute; top: 10px; right: 12px;
+  border: 0; background: none; cursor: pointer;
+  font-size: 22px; line-height: 1; color: var(--text-schwach);
+}
+.ios-karte h2 {
+  margin: 0 0 6px; font-size: 17px; color: var(--gruen-900);
+  padding-right: 24px;
+}
+.ios-karte > p { margin: 0 0 14px; font-size: 13px; color: var(--text-schwach); }
+.ios-karte ol { margin: 0; padding: 0; list-style: none; }
+/* ⚠️ Kein flex fuer die Zeile: Jedes <strong>, <em> und jede Glyphe
+   waere ein eigener Flex-Kasten, und der Umbruch spraenge dann zwischen
+   die Teile – ein einzelner Punkt landete allein auf der letzten Zeile.
+   Die Ziffer steht deshalb absolut, der Text fließt normal. */
+.ios-karte li {
+  position: relative;
+  font-size: 14px; line-height: 1.5;
+  padding: 11px 0 11px 31px; border-top: 1px solid var(--linie);
+}
+.ios-schritt {
+  position: absolute; left: 0; top: 11px;
+  width: 23px; height: 23px; border-radius: 50%;
+  background: var(--gruen-700); color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* Die Glyphen zeigen, wonach man sucht – das Teilen-Symbol und das Plus.
+   Ohne sie muss man den Text in der Leiste erst suchen. */
+.ios-glyphe {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 27px; height: 27px; border-radius: 7px;
+  border: 1px solid var(--linie); background: var(--sand-100);
+  color: #0a66c2; vertical-align: middle;
+}
+/* ⚠️ Mit .ios-karte davor, nicht nur .ios-fuss: ".ios-karte > p" ist
+   spezifischer (eine Klasse plus ein Element) und gewinnt sonst über
+   Rand, Schriftgröße und Farbe. */
+.ios-karte .ios-fuss {
+  margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--linie);
+  font-size: 12.5px; color: var(--text-schwach);
+}
+
+/* Der Knopf im Zettel. Er TUT etwas – nach einer neuen Fassung sehen –,
+   während die Schritte daneben nur erklären. Deshalb sieht er aus wie ein
+   Knopf und nicht wie ein Hinweis. */
+.ios-tun {
+  display: block; width: 100%;
+  margin: 14px 0 0; padding: 11px 14px;
+  border: 0; border-radius: 10px;
+  background: var(--gruen-700); color: #fff;
+  font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.ios-tun:hover { background: var(--gruen-900); }
+.ios-tun:disabled { opacity: .65; cursor: default; }
+.ios-tun[hidden] { display: none; }
+
+/* Die Antwort auf den Knopfdruck: „schon auf dem neuesten Stand“ oder was
+   dagegen sprach. */
+.ios-karte .ios-stand {
+  margin: 10px 0 0; padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--gruen-050); color: var(--gruen-900);
+  font-size: 13px; line-height: 1.45;
+}
+.ios-karte .ios-stand[hidden] { display: none; }
+
+/* Der Weg zur anderen Hälfte – vom Aktualisieren zur Anleitung und
+   zurück. Unauffällig, weil er selten gebraucht wird. */
+.ios-mehr {
+  display: block; margin: 12px 0 0; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; text-align: left;
+  color: var(--gruen-700); text-decoration: underline;
+}
+.ios-mehr[hidden] { display: none; }
+
+/* Auf breiten Fenstern mittig statt unten – dort ist es kein Telefon. */
+@media (min-width: 560px) {
+  .ios-hinweis { align-items: center; }
+}
+
+/* --- Für offline vorbereiten (Seitenleiste) ------------------------------- */
+.offline-balken {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gruen-050);
+  border: 1px solid var(--linie);
+  overflow: hidden;
+}
+.offline-balken[hidden] { display: none; }
+.offline-balken i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--gruen-600);
+  transition: width .2s linear;
+}
+#offline-vorbereiten { align-self: flex-start; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }

@@ -19,7 +19,7 @@
 <!-- Startbild: erscheint zuerst, Klick öffnet die Anwendung -->
 <div class="splash" id="splash">
   <div class="splash-bild">
-    <img id="splash-img" src="assets/front.PNG" alt="">
+    <img id="splash-img" alt="">
     <div class="splash-ersatz" id="splash-ersatz">
       <h1>BASTAKLIM</h1>
       <p>Digitale Baumarten-Standort-Klima Anwendung</p>
@@ -72,11 +72,33 @@
   </div>
 </header>
 
+<!-- Zettel zum Installieren – und zum Aktualisieren.
+
+     ⚠️ Der Inhalt wird von app.js gesetzt, weil jeder Browser einen
+     anderen Weg hat – und weil Safari das Ereignis "beforeinstallprompt"
+     gar nicht kennt. Ist die App schon installiert, steht hier statt der
+     Installationsanleitung der Weg zum Aktualisieren. Hier steht nur die
+     Huelle: Knopf (#install-hilfe-tun) und Standzeile bleiben leer und
+     verborgen, solange keine Fassung sie braucht. -->
+<div class="ios-hinweis" id="install-hilfe" hidden>
+  <div class="ios-karte">
+    <button type="button" class="ios-zu" id="install-hilfe-zu"
+            aria-label="schließen">×</button>
+    <h2 id="install-hilfe-titel"></h2>
+    <p id="install-hilfe-lead"></p>
+    <ol id="install-hilfe-schritte"></ol>
+    <button type="button" class="ios-tun" id="install-hilfe-tun" hidden></button>
+    <p class="ios-stand" id="install-hilfe-stand" hidden></p>
+    <p class="ios-fuss" id="install-hilfe-fuss"></p>
+    <button type="button" class="ios-mehr" id="install-hilfe-mehr" hidden></button>
+  </div>
+</div>
+
 <div class="layout" id="layout">
 
   <aside class="sidebar" id="sidebar">
     <section class="karte">
-      <h2>BASTAKLIM v3.1 Beta</h2>
+      <h2>BASTAKLIM v3.2 Beta</h2>
       <div class="karte-inhalt">
         <p>JP. Nasse</p>
         <p>Dr. E. A. Thurm</p>
@@ -91,6 +113,33 @@
       <div class="karte-inhalt">
         <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass (PDF)</a>
         <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">Klimastufen-Karte (PDF)</a>
+      </div>
+    </section>
+
+    <!-- Teilen. Bleibt verborgen, solange es weder den QR-Code noch eine
+         teilbare Adresse gibt – siehe teilenAufbauen() in app.js. -->
+    <section class="karte" id="sidebar-teilen" hidden>
+      <h2>Teilen</h2>
+      <div class="karte-inhalt">
+        <button type="button" class="qr-knopf" id="teilen-qr" hidden
+                title="QR-Code groß anzeigen">
+          <img id="teilen-qr-bild" alt="QR-Code zum Öffnen von BASTAKLIM">
+        </button>
+        <p class="qr-text" id="teilen-text" hidden>
+          Mit der Kamera scannen. Zum Vergrößern antippen.
+        </p>
+      </div>
+      <div class="karte-inhalt" id="teilen-knoepfe"></div>
+    </section>
+
+    <!-- Für offline vorbereiten: lädt Bilder und PDFs in den Vorrat,
+         siehe offlineBereich() in app.js -->
+    <section class="karte" id="sidebar-offline">
+      <h2>Offline</h2>
+      <div class="karte-inhalt">
+        <p id="offline-status">Lädt alle Bilder und beide PDFs (rund 35–50 MB), damit die App im Wald ohne Netz vollständig läuft. Am besten im WLAN.</p>
+        <div class="offline-balken" id="offline-balken" hidden><i></i></div>
+        <button type="button" class="btn btn--klein" id="offline-vorbereiten">Für offline vorbereiten</button>
       </div>
     </section>
 
@@ -233,8 +282,10 @@
         Angegeben ist der <strong>höchste Anteil</strong>, mit dem die Baumart auf
         diesem Standort in einem Bestockungszieltyp vorkommen darf – bei einer
         gewählten Mischung nur noch in den Zieltypen, die alle gewählten Arten
-        zugleich zulassen. Die Anteile sind Obergrenzen und addieren sich nicht
-        zu 100 %. Die einzelnen Zieltypen und ihre Spannen stehen im
+        zugleich zulassen. <strong>Die Anteile lassen sich nicht addieren:</strong>
+        Baumarten derselben Baumartengruppe sind Alternativen zueinander und
+        teilen sich deren Anteil. Die Mindestanteile gelten erst, wenn ein
+        einzelner Zieltyp gewählt ist; sie stehen mit den Zieltypen im
         <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass</a>.
       </p>
 
@@ -379,6 +430,9 @@
 <!-- Betriebsart: index.html = professional, siehe Kopf von app.js -->
 <script>window.BZT_MODUS = "professional";</script>
 <script src="data/bzt_data.js"></script>
+<!-- Welche Bilddatei zu welcher Kachel gehört. Ohne sie probiert app.js
+     fünf Endungen je Kachel durch – über HTTP 504 Anfragen je Aufruf. -->
+<script src="data/bilder.js"></script>
 <script src="data/klimaraster.js"></script>
 <script src="app.js"></script>
 <script src="light.js"></script>

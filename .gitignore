@@ -10,4 +10,7 @@ build/
 # Aus ihnen entsteht data/forstadressen/ mit tools/build_forstadressen.py.
 data/intern_data.csv
 data/intern_data*.csv
-data/beispiel/*.csv
+
+# Das Erzeugte selbst: echte Forstadressen, die nicht veroeffentlicht werden.
+# Es entsteht in Sekunden neu, sobald die CSV da ist.
+data/forstadressen/

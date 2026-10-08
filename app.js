@@ -24,9 +24,39 @@
     ba:   function (slug) { return "assets/baumart/"    + slug; }
   };
 
-  // Reihenfolge, in der Dateiendungen probiert werden. Ein eigenes PNG
-  // gewinnt damit immer gegen ein mitgeliefertes JPG gleichen Namens.
+  // Reihenfolge, in der Dateiendungen probiert werden – nur noch als
+  // Rückfall, wenn data/bilder.js die Kachel nicht kennt.
+  //
+  // ⚠️ Nicht wieder zum Regelfall machen. Unter file:// kostet das
+  // Durchprobieren nichts: Das Dateisystem sagt sofort "gibt es nicht",
+  // es entsteht keine Netzanfrage. ÜBER HTTP IST JEDE PROBE EINE ECHTE
+  // ANFRAGE. Gemessen an einem Seitenaufruf: 504 Anfragen, 496 davon mit
+  // Antwort 404 – GitHub hat die Seite daraufhin gedrosselt und statt der
+  // App "Rate limit exceeded" ausgeliefert. Besonders teuer waren die
+  // erzeugten SVG: ".svg" steht hier an letzter Stelle, also kostete jede
+  // Standorts- und Baumartenkachel fünf Anfragen, vier davon vergeblich.
+  //
+  // Weil pruefen.js über file:// läuft, ist das jahrelang nicht
+  // aufgefallen – dort SIND die Fehlschläge folgenlos.
   var BILD_ENDUNGEN = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
+
+  /**
+   * Welche Datei gehört zu dieser Kachel?
+   *
+   * data/bilder.js (aus tools/make_bilderliste.py) nennt zu jedem Slug
+   * den tatsächlichen Dateinamen samt Endung. Dann wird genau eine Datei
+   * geholt. Fehlt die Tabelle oder der Eintrag, bleibt es beim alten
+   * Durchprobieren – eine neu abgelegte Datei funktioniert also auch ohne
+   * neuen Lauf des Skripts, nur eben wieder teuer.
+   */
+  function bildKandidaten(facet, slug) {
+    var t = window.BZT_BILDER;
+    var name = t && t[facet] && t[facet][slug];
+    var ordner = BILD_PFADE[facet]("");
+    if (name) return [ordner + name];
+    var basis = ordner + slug;
+    return BILD_ENDUNGEN.map(function (e) { return basis + e; });
+  }
 
   /* ------------------------------------------------------------------ *
    * QUELLDOKUMENTE
@@ -222,7 +252,7 @@
   }
 
   // Bildkachel: Platzhalter im Hintergrund, Bild darüber (falls vorhanden).
-  // Es werden nacheinander alle Endungen aus BILD_ENDUNGEN probiert.
+  // Welche Datei das ist, sagt bildKandidaten() – im Normalfall genau eine.
   //
   // ⚠️ Der Platzhalter darf nur so lange stehen, wie es kein Bild gibt.
   // Beides gleichzeitig sichtbar zu lassen war ein Fehler: Die Kacheln der
@@ -242,7 +272,7 @@
     var box = el("span", "thumb thumb--" + facet + (extraKlasse ? " " + extraKlasse : ""));
     box.appendChild(el("span",
       "thumb-code" + (String(code).length > 7 ? " thumb-code--lang" : ""), code));
-    var basis = BILD_PFADE[facet](slug);
+    var kandidaten = bildKandidaten(facet, slug);
     var i = 0;
     var img = new Image();
     img.alt = "";
@@ -252,10 +282,10 @@
     });
     img.addEventListener("error", function () {
       i++;
-      if (i < BILD_ENDUNGEN.length) img.src = basis + BILD_ENDUNGEN[i];
+      if (i < kandidaten.length) img.src = kandidaten[i];
       else img.remove();
     });
-    img.src = basis + BILD_ENDUNGEN[0];
+    img.src = kandidaten[0];
     box.appendChild(img);
     return box;
   }
@@ -318,8 +348,17 @@
 
       if (!moeglich && !gewaehlt && !zeigeNichtMoegliche) return;
       if (q) {
+        /* Gesucht wird in allem, was auf der Kachel steht – und bei den
+           Baumarten zusaetzlich im wissenschaftlichen Namen. Wer
+           „Sorbus“ eingibt, meint Elsbeere und Eberesche, und das weiss
+           kein deutscher Name; „Quercus“ bringt alle vier Eichen.
+           ⚠️ Nur lat, nicht latVoll: Der Autor im vollen Namen stiftet
+           Unfug – „EB“ fand damit auch die Traubeneiche, weil deren
+           Autor „LIEBL.“ heisst. Die anderen Spalten haben kein lat und
+           merken von alldem nichts. */
         var hay = (t.code + " " + t.name + " " + (t.meta || "") + " " +
-                   (o.gruppe || "")).toLowerCase();
+                   (o.gruppe || "") + " " +
+                   (o.lat || "")).toLowerCase();
         if (hay.indexOf(q) === -1) return;
       }
 
@@ -420,12 +459,20 @@
       proBzt.size + " Bestandeszieltyp" + (proBzt.size === 1 ? "" : "en") + " · " +
       stgrGesamt + " Standortgruppe" + (stgrGesamt === 1 ? "" : "n");
 
+    // Nach BZT-Nummer, nicht nach Häufigkeit. Vorher stand der Zieltyp mit
+    // den meisten Kombinationen oben – ohne Filter ergab das die Folge
+    // 12, 4, 10, …, die von außen wie Zufall aussieht. Die Nummern des
+    // Erlasses sind dagegen eine Ordnung, die man kennt (Eiche → Buche →
+    // Edellaubbäume → Erle → Birke → Kiefer → Douglasie → Lärche), und
+    // jede Karte trägt ihr "Nr. X" sichtbar.
+    //
+    // Die Häufigkeit geht dabei nichts verloren: Sobald Klimastufe und
+    // Standort gewählt sind, kommt ohnehin jeder Zieltyp genau einmal vor
+    // – die alte Sortierung wirkte also nur in dem Zustand, in dem sie am
+    // wenigsten zu erklären war.
     var cards = el("div", "bzt-cards");
     Array.from(proBzt.keys())
-      .sort(function (a, b) {
-        var d = proBzt.get(b).n - proBzt.get(a).n;
-        return d !== 0 ? d : D.bzt[a].nr - D.bzt[b].nr;
-      })
+      .sort(function (a, b) { return D.bzt[a].nr - D.bzt[b].nr; })
       .forEach(function (bi) { cards.appendChild(bztKarte(bi, proBzt.get(bi))); });
     body.appendChild(cards);
   }
@@ -619,8 +666,25 @@
     renderSeitenleiste(rows);
     renderAktiveFilter();
     renderErgebnis(rows);
+    csvZustand();
     schreibeHash();
     return rows;
+  }
+
+  // Die CSV gibt es nur zu einer gesetzten Auswahl – nicht die gesamte
+  // Zieltabelle auf einen Klick.
+  function hatAuswahl() {
+    return FACETS.some(function (f) { return sel[f].size > 0; });
+  }
+  function csvZustand() {
+    var an = hatAuswahl();
+    ["export-csv", "sidebar-csv"].forEach(function (id) {
+      var k = document.getElementById(id);
+      if (!k) return;
+      k.disabled = !an;
+      k.title = an ? "Die aktuelle Auswahl als CSV-Tabelle speichern"
+                   : "Erst eine Auswahl treffen (Klimastufe, Standort, BZT oder Baumart)";
+    });
   }
 
 
@@ -665,8 +729,11 @@
       : (s.label || "");
     viewer.zurueck.disabled = viewer.pos === 0;
     viewer.weiter.disabled = viewer.pos >= viewer.seiten.length - 1;
+    // Nicht jedes Blatt kommt aus einem PDF – der QR-Code etwa nicht. Ohne
+    // diese Zeile stünde dort ein Link mit href="undefined".
+    viewer.pdf.hidden = !s.pdfUrl;
     viewer.pdf.textContent = s.pdfText || "Original-PDF öffnen ↗";
-    viewer.pdf.href = s.pdfUrl;
+    viewer.pdf.href = s.pdfUrl || "";
   }
 
   function viewerSchliessen() {
@@ -738,6 +805,31 @@
 
   var LOGO_ENDUNGEN = [".png", ".PNG", ".svg", ".jpg", ".JPG", ".jpeg", ".webp"];
 
+  /**
+   * Kandidaten für ein Einzelbild (Logo, Startbild, QR-Code).
+   *
+   * ⚠️ Kennt data/bilder.js den Namen, wird genau diese eine Datei geholt;
+   * kennt sie ihn nicht, GAR KEINE. Das ist der Unterschied zu den
+   * Kacheln: Dort ist ein fehlendes Bild die Ausnahme, hier der
+   * Normalfall – logo1 bis logo4 sind optional und meist nicht da. Vorher
+   * kostete jeder dieser leeren Plätze vierzehn Anfragen (sieben Endungen
+   * × zwei Schreibweisen), zusammen 60 je Seitenaufruf, alle mit 404.
+   *
+   * Fehlt die Tabelle ganz, wird wie früher durchprobiert – sonst würde
+   * ein Auscheck ohne data/bilder.js gar keine Logos mehr zeigen.
+   */
+  function logoKandidaten(name) {
+    var t = window.BZT_BILDER;
+    if (t && t.einzeln) {
+      return t.einzeln[name] ? ["assets/" + t.einzeln[name]] : [];
+    }
+    var kandidaten = [];
+    [name, name.charAt(0).toUpperCase() + name.slice(1)].forEach(function (n) {
+      LOGO_ENDUNGEN.forEach(function (e) { kandidaten.push("assets/" + n + e); });
+    });
+    return kandidaten;
+  }
+
   function logoWeg(img) {
     var box = img.closest(".logo-slot");
     // Beim Logo neben dem Titel bleibt die gezeichnete Marke stehen.
@@ -751,11 +843,8 @@
     var name = img.dataset.logo;
     if (!name) return;
     // Kandidaten: assets/logo1.png, assets/logo1.PNG, …, assets/Logo1.png, …
-    var namen = [name, name.charAt(0).toUpperCase() + name.slice(1)];
-    var kandidaten = [];
-    namen.forEach(function (n) {
-      LOGO_ENDUNGEN.forEach(function (e) { kandidaten.push("assets/" + n + e); });
-    });
+    var kandidaten = logoKandidaten(name);
+    if (!kandidaten.length) { logoWeg(img); return; }
     var i = 0;
     img.addEventListener("error", function () {
       i++;
@@ -793,20 +882,26 @@
     var hinweis = document.getElementById("splash-hinweis");
     var bereit = false;
 
-    // Dateiname wird in beiden Schreibweisen probiert; fehlt das Bild,
-    // bleibt die gezeichnete Ersatzdarstellung stehen.
-    var versuche = ["assets/front.PNG", "assets/front.png", "assets/front.jpg"];
-    var i = 0;
-    img.addEventListener("error", function () {
-      i++;
-      if (i < versuche.length) img.src = versuche[i];
-      else img.remove();
-    });
-    img.addEventListener("load", function () {
-      img.classList.add("ist-geladen");   // vorher unsichtbar, siehe styles.css
-      ersatz.hidden = true;
-    });
-    img.src = versuche[0];
+    // ⚠️ Das <img> im HTML trägt bewusst KEIN src-Attribut. Stünde dort
+    // "assets/front.PNG", liefe die Anfrage schon vor diesem Skript los –
+    // und bei fehlender Datei wäre sie eine 404, die sich durch nichts
+    // mehr verhindern lässt.
+    var versuche = logoKandidaten("front");
+    if (!versuche.length) {
+      img.remove();                       // kein Startbild, Ersatz bleibt
+    } else {
+      var i = 0;
+      img.addEventListener("error", function () {
+        i++;
+        if (i < versuche.length) img.src = versuche[i];
+        else img.remove();
+      });
+      img.addEventListener("load", function () {
+        img.classList.add("ist-geladen");   // vorher unsichtbar, siehe styles.css
+        ersatz.hidden = true;
+      });
+      img.src = versuche[0];
+    }
 
     requestAnimationFrame(function () { balken.style.width = "100%"; });
     window.setTimeout(function () {
@@ -849,6 +944,124 @@
       schalter.setAttribute("aria-expanded", zu ? "false" : "true");
       try { window.localStorage.setItem("bzt-sidebar", zu ? "zu" : "auf"); } catch (e) {}
     }
+  })();
+
+  /* --- Für offline vorbereiten ----------------------------------------- *
+   *
+   * Der Service Worker hält von sich aus nur den Rumpf vor (HTML, Skripte,
+   * Daten) und Bilder, die schon einmal angezeigt wurden. Dieser Knopf lädt
+   * auf Wunsch alles Übrige in einen eigenen Vorrat "bastaklim-offline":
+   * sämtliche Kachelbilder, die Erlass-Seiten, die Karte und beide PDFs
+   * (rund 35–50 MB – daher nur auf Knopfdruck, am besten im WLAN).
+   * sw.js liefert daraus, wenn kein Netz da ist, und löscht diesen Vorrat
+   * beim Versionswechsel nicht.
+   * --------------------------------------------------------------------- */
+
+  var OFFLINE_VORRAT = "bastaklim-offline";
+
+  (function offlineBereich() {
+    var knopf = document.getElementById("offline-vorbereiten");
+    var status = document.getElementById("offline-status");
+    var balken = document.getElementById("offline-balken");
+    if (!knopf || !status) return;
+
+    var moeglich = "caches" in window && "serviceWorker" in navigator &&
+      (location.protocol === "https:" || location.hostname === "localhost");
+    if (!moeglich) {
+      knopf.disabled = true;
+      status.textContent = "Nur über die Web-Adresse möglich, nicht beim Öffnen als Datei.";
+      return;
+    }
+
+    var stand = null;
+    try { stand = JSON.parse(window.localStorage.getItem("bzt-offline") || "null"); } catch (e) {}
+    if (stand) {
+      caches.has(OFFLINE_VORRAT).then(function (da) {
+        if (da) status.textContent = "Vorbereitet am " + stand.datum + " · " + stand.dateien +
+          " Dateien, " + stand.mb + " MB.";
+      });
+    }
+
+    // Kandidaten: je Bild die möglichen Endungen der Reihe nach; genommen
+    // wird die erste, die es gibt – wie in thumb().
+    function gruppen() {
+      var g = [];
+      // ⚠️ Über bildKandidaten, nicht über alle Endungen: Kennt
+      // data/bilder.js die Kachel, steht da genau ein Pfad statt fünf
+      // Proben. Beim Vorbereiten sind das ein paar hundert Anfragen
+      // weniger – und GitHub zählt jede einzelne mit.
+      function bild(facet, slug) { g.push(bildKandidaten(facet, slug)); }
+      D.klimastufen.forEach(function (o) { bild("kli", o.slug); });
+      D.standorte.forEach(function (o) { bild("stgr", o.slug); });
+      D.bzt.forEach(function (o) {
+        bild("bzt", o.slug);
+        if (o.seite) { g.push([SEITEN_BILD(o.seite)]); g.push([SEITEN_BILD(o.seite + 1)]); }
+      });
+      D.baumarten.forEach(function (o) { bild("ba", o.slug); });
+      // Die Einzelbilder (Logos, Titelbild, QR-Code) gleich mit: Sie liegen
+      // sonst nur im laufenden Vorrat, und der fällt beim Fassungswechsel
+      // weg – der Offline-Vorrat bleibt.
+      var einzeln = (window.BZT_BILDER || {}).einzeln || {};
+      Object.keys(einzeln).forEach(function (n) {
+        g.push(["assets/" + einzeln[n]]);
+      });
+      g.push([KLIMA_BILD]);
+      g.push(["assets/klimastufe/karte.png"]);
+      g.push([DOKUMENTE.erlass.pdf]);
+      g.push([DOKUMENTE.klima.pdf]);
+      return g;
+    }
+
+    knopf.addEventListener("click", function () {
+      var liste = gruppen();
+      var fertig = 0, dateien = 0, bytes = 0;
+      knopf.disabled = true;
+      if (balken) { balken.hidden = false; balken.firstElementChild.style.width = "0%"; }
+      status.textContent = "Wird geladen …";
+
+      caches.open(OFFLINE_VORRAT).then(function (vorrat) {
+        function eine(kandidaten) {
+          var i = 0;
+          function naechste() {
+            if (i >= kandidaten.length) return Promise.resolve();
+            var url = kandidaten[i++];
+            return fetch(url, { cache: "no-cache" }).then(function (antwort) {
+              if (!antwort.ok) return naechste();
+              return antwort.clone().blob().then(function (b) {
+                bytes += b.size;
+                dateien++;
+                return vorrat.put(url, antwort);
+              });
+            }).catch(naechste);
+          }
+          return naechste().then(function () {
+            fertig++;
+            var pz = Math.round(100 * fertig / liste.length);
+            if (balken) balken.firstElementChild.style.width = pz + "%";
+            status.textContent = "Wird geladen … " + pz + " %";
+          });
+        }
+        // sechs Downloads gleichzeitig
+        var pos = 0;
+        function arbeiter() {
+          if (pos >= liste.length) return Promise.resolve();
+          return eine(liste[pos++]).then(arbeiter);
+        }
+        return Promise.all([arbeiter(), arbeiter(), arbeiter(), arbeiter(), arbeiter(), arbeiter()]);
+      }).then(function () {
+        var info = { datum: new Date().toLocaleDateString("de-DE"), dateien: dateien,
+                     mb: String(Math.round(bytes / 1e5) / 10).replace(".", ",") };
+        try { window.localStorage.setItem("bzt-offline", JSON.stringify(info)); } catch (e) {}
+        status.textContent = "Fertig: " + dateien + " Dateien, " + info.mb +
+          " MB. Die App ist jetzt auch ohne Netz vollständig nutzbar.";
+      }).catch(function () {
+        status.textContent = "Das Laden ist fehlgeschlagen. Bitte mit Netz erneut versuchen.";
+      }).then(function () {
+        knopf.disabled = false;
+        knopf.textContent = "Erneut vorbereiten";
+        if (balken) balken.hidden = true;
+      });
+    });
   })();
 
   bei("sidebar-reset", "click", function () {
@@ -915,6 +1128,7 @@
   });
 
   bei("export-csv", "click", function () {
+    if (!hatAuswahl()) return;
     exportCsv(filtern(null));
   });
 
@@ -1025,6 +1239,156 @@
       v.split(",").filter(Boolean).forEach(function (id) { sel[k].add(decodeURIComponent(id)); });
     });
   }
+
+  /* --- Teilen ------------------------------------------------------------ *
+   *
+   * Eine Karte in der Seitenleiste mit dem QR-Code und, wo es Sinn ergibt,
+   * einem Knopf zum Weitergeben der Adresse.
+   *
+   * Warum beides und nicht nur eines: Der QR-Code ist der Fall am Schreib-
+   * tisch – jemand hält sein Telefon an den Bildschirm. Am Telefon selbst
+   * ist er nutzlos (man kann den eigenen Bildschirm nicht scannen), dort
+   * zählt das Teilen-Blatt des Betriebssystems.
+   *
+   * ⚠️ Unter file:// gibt es keine Adresse, die jemand anderem etwas nützt –
+   * `file:///C:/Users/.../index.html` zeigt auf einen fremden Rechner. Die
+   * Knöpfe erscheinen deshalb nur über http/https. Der QR-Code dagegen ist
+   * ein Bild und funktioniert immer; was er enthält, bestimmt die PNG-Datei.
+   * ---------------------------------------------------------------------- */
+
+  var QR_NAME = "BASTAKLIM_logo_qr";
+
+  function teilenAdresse() {
+    // Der aktuelle Filter steht im Hash (siehe schreibeHash) und wandert
+    // damit mit: Wer teilt, teilt seine Auswahl.
+    if (location.protocol !== "http:" && location.protocol !== "https:") return null;
+    return location.href;
+  }
+
+  function qrLaden(img, fertig) {
+    // Dieselbe Schreibweisen-Suche wie bei den Logos: Groß-/Kleinschreibung
+    // zählt auf Servern, und wer die Datei von Hand ablegt, trifft nicht
+    // immer die erwartete Endung.
+    var kandidaten = logoKandidaten(QR_NAME);
+    if (!kandidaten.length) { fertig(null); return; }
+    var i = 0;
+    img.addEventListener("load", function () {
+      img.classList.add("ist-geladen");
+      fertig(kandidaten[i]);
+    });
+    img.addEventListener("error", function () {
+      i++;
+      if (i < kandidaten.length) img.src = kandidaten[i];
+      else fertig(null);
+    });
+    img.src = kandidaten[0];
+  }
+
+  /** Der alte Weg: Feld anlegen, Inhalt auswählen, kopieren lassen. */
+  function altKopieren(text) {
+    var feld = el("textarea");
+    feld.value = text;
+    feld.setAttribute("readonly", "readonly");
+    feld.style.cssText = "position:fixed;top:-1000px;left:0;opacity:0";
+    document.body.appendChild(feld);
+    var ok = false;
+    try {
+      feld.select();
+      feld.setSelectionRange(0, text.length);   // iOS braucht das
+      ok = document.execCommand("copy");
+    } catch (e) {}
+    feld.remove();
+    return ok;
+  }
+
+  /**
+   * Letzter Ausweg: die Adresse sichtbar und vorausgewählt hinstellen,
+   * damit sie sich wenigstens von Hand abgreifen lässt.
+   */
+  function zeigeAdresse(text) {
+    var leiste = document.getElementById("teilen-knoepfe");
+    if (!leiste || document.getElementById("teilen-adresse")) return;
+    var feld = el("input", "teilen-adresse");
+    feld.id = "teilen-adresse";
+    feld.type = "text";
+    feld.value = text;
+    feld.setAttribute("readonly", "readonly");
+    feld.setAttribute("aria-label", "Adresse zum Kopieren");
+    leiste.appendChild(feld);
+    feld.focus();
+    feld.select();
+  }
+
+  function teilenAufbauen() {
+    var karte = document.getElementById("sidebar-teilen");
+    if (!karte) return;
+    var knopf = document.getElementById("teilen-qr");
+    var bild = document.getElementById("teilen-qr-bild");
+    var text = document.getElementById("teilen-text");
+    var leiste = document.getElementById("teilen-knoepfe");
+
+    var adresse = teilenAdresse();
+
+    if (adresse && navigator.share) {
+      var sharen = el("button", "btn btn--klein", "teilen …");
+      sharen.type = "button";
+      sharen.addEventListener("click", function () {
+        navigator.share({
+          title: "BASTAKLIM – BZT-Filter",
+          text: "Bestandeszieltypen nach Klimastufe und Standort",
+          url: teilenAdresse()
+        }).catch(function () {});   // Abbrechen ist kein Fehler
+      });
+      leiste.appendChild(sharen);
+    }
+
+    if (adresse) {
+      var kopieren = el("button", "btn btn--klein", "Link kopieren");
+      kopieren.type = "button";
+      kopieren.addEventListener("click", function () {
+        var url = teilenAdresse();
+        var fertig = function (ok) {
+          kopieren.textContent = ok ? "kopiert ✓" : "bitte von Hand kopieren";
+          if (!ok) zeigeAdresse(url);
+          window.setTimeout(function () {
+            kopieren.textContent = "Link kopieren";
+          }, ok ? 1600 : 3000);
+        };
+        // Erst die moderne Zwischenablage, dann der alte Weg über ein
+        // ausgewähltes Feld. Der ist nötig, weil die Clipboard-API in
+        // manchen Browsern und Einstellungen verweigert wird – und ein
+        // Teilen-Knopf, der nur "ging nicht" sagt, ist keiner.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url)
+            .then(function () { fertig(true); },
+                  function () { fertig(altKopieren(url)); });
+        } else {
+          fertig(altKopieren(url));
+        }
+      });
+      leiste.appendChild(kopieren);
+    }
+
+    qrLaden(bild, function (pfad) {
+      if (pfad) {
+        knopf.hidden = false;
+        text.hidden = false;
+        knopf.addEventListener("click", function () {
+          viewerOeffnen("BASTAKLIM teilen",
+            "Mit der Kamera des Telefons scannen",
+            [{ bild: pfad, alt: "QR-Code zum Öffnen von BASTAKLIM" }]);
+        });
+      } else {
+        bild.remove();
+      }
+      // Die Karte erscheint, sobald sie etwas zu bieten hat – sonst stünde
+      // eine leere Überschrift "Teilen" in der Leiste.
+      karte.hidden = !pfad && !leiste.children.length;
+    });
+  }
+
+  teilenAufbauen();
+
 
   /* --- Umschalter light / professional ---------------------------------- *
    *
@@ -1232,7 +1596,9 @@
    * --------------------------------------------------------------------- */
 
   if ("serviceWorker" in navigator &&
-      (location.protocol === "https:" || location.hostname === "localhost")) {
+      (location.protocol === "https:" ||
+       location.hostname === "localhost" ||
+       location.hostname === "127.0.0.1")) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("sw.js").catch(function () {
         // Kein Grund, den Betrieb zu stören – die App läuft auch so.
@@ -1243,29 +1609,478 @@
   // Chrome bietet das Installieren nur an, wenn die Seite danach fragt.
   // Der Knopf erscheint erst, wenn der Browser bereit ist, und
   // verschwindet nach dem Installieren wieder.
+  /**
+   * Läuft die Seite bereits als installierte App?
+   *
+   * Zwei Wege, weil kein einzelner überall stimmt: display-mode kennen
+   * die meisten Browser, navigator.standalone nur Safari.
+   */
+  function laeuftAlsApp() {
+    try {
+      if (window.matchMedia &&
+          window.matchMedia("(display-mode: standalone)").matches) return true;
+    } catch (e) {}
+    return window.navigator.standalone === true;
+  }
+
+  /**
+   * iPhone oder iPad?
+   *
+   * ⚠️ Das iPad meldet sich seit iPadOS 13 als "Macintosh". Ohne die
+   * zweite Prüfung auf Berührungspunkte fiele es durch und bekäme den
+   * Hinweis nie zu sehen.
+   */
+  function istIOS() {
+    var ua = navigator.userAgent || "";
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  }
+
+  /* Ist BASTAKLIM auf diesem Gerät schon als App installiert?
+   *
+   * Direkt fragen kann man das nur in den Chromium-Browsern
+   * (getInstalledRelatedApps, siehe unten). Damit die Antwort auch sonst
+   * bekannt bleibt, wird das Installieren hier vermerkt – und wieder
+   * gelöscht, sobald der Browser erneut ein Angebot macht, denn das tut
+   * er nur für eine NICHT installierte App.
+   */
+  var INSTALL_MERKER = "bzt-installiert";
+
+  function merkerLesen() {
+    try { return window.localStorage.getItem(INSTALL_MERKER) === "1"; }
+    catch (e) { return false; }
+  }
+
+  function merkerSchreiben(an) {
+    try {
+      if (an) window.localStorage.setItem(INSTALL_MERKER, "1");
+      else window.localStorage.removeItem(INSTALL_MERKER);
+    } catch (e) {}
+  }
+
+  /* --- Installieren ------------------------------------------------------ *
+   *
+   * ⚠️ Der Knopf haengt NICHT mehr an "beforeinstallprompt".
+   *
+   * Das war die urspruengliche Fassung, und sie hat zwei Loecher: Safari
+   * loest das Ereignis gar nicht aus, und Chrome loest es nach eigenen
+   * Regeln aus – mal sofort, mal erst nach ein paar Besuchen, und nie
+   * mehr, wenn die App schon einmal installiert war. Der Knopf war damit
+   * mal da und mal weg, ohne dass ein Mensch den Unterschied erklaeren
+   * koennte.
+   *
+   * Jetzt umgekehrt: Der Knopf steht immer da, SOLANGE die Seite nicht
+   * schon als App laeuft. Hat der Browser ein Angebot gemacht, oeffnet er
+   * den echten Dialog; sonst erklaert er den Weg von Hand. Fuer jeden
+   * Browser einen eigenen, denn sie unterscheiden sich.
+   * ----------------------------------------------------------------- */
+
+  function browserArt() {
+    var ua = navigator.userAgent || "";
+    if (istIOS()) return "ios";
+    if (/Firefox\//.test(ua)) return "firefox";
+    if (/Android/.test(ua)) return "android";
+    if (/Edg\//.test(ua)) return "edge";
+    if (/Chrome\/|Chromium\//.test(ua)) return "chrome";
+    return "andere";
+  }
+
+  // Die Symbole, nach denen man in der jeweiligen Leiste sucht.
+  var GLYPHEN = {
+    teilen: '<path d="M12 15V3"/><path d="M8 7l4-4 4 4"/>' +
+            '<path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>',
+    plus:   '<rect x="4" y="4" width="16" height="16" rx="3"/>' +
+            '<path d="M12 9v6"/><path d="M9 12h6"/>',
+    menue:  '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/>' +
+            '<circle cx="12" cy="19" r="1.4"/>',
+    // ⚠️ Senkrecht oder waagerecht ist keine Frage des Browsers,
+    // sondern der Fassung – Edge hat beides gehabt. Deshalb werden in den
+    // Anleitungen beide Punkte-Symbole nebeneinander gezeigt, statt eines
+    // davon zu behaupten.
+    menue_quer: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/>' +
+            '<circle cx="19" cy="12" r="1.4"/>',
+    schirm: '<rect x="3" y="4" width="18" height="13" rx="2"/>' +
+            '<path d="M8 20h8"/><path d="M12 17v3"/>'
+  };
+
+  function glyphe(art) {
+    return '<span class="ios-glyphe" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" ' +
+      'stroke-linejoin="round">' + GLYPHEN[art] + '</svg></span>';
+  }
+
+  /* Die Wege von Hand – fuer jeden Browser ein eigener.
+   *
+   * ⚠️ Keine Menuefolge als Tatsache behaupten. Chrome und Edge
+   * benennen und verschieben diese Eintraege von Fassung zu Fassung; eine
+   * Anleitung, die zwei Fassungen alt ist, schickt Leute in die Irre –
+   * genau das ist hier schon passiert („Menue ⋮ → Apps", waehrend es in
+   * Wirklichkeit waagerechte Punkte und „Weitere Tools → Apps" waren).
+   *
+   * Deshalb steht hier, WONACH zu suchen ist, und nicht, wo es steht. Als
+   * Tatsache benannt wird nur, was stabil ist: das Teilen-Symbol in Safari
+   * und das Symbol in der Adresszeile. Die drei Punkte stehen als Paar da
+   * (senkrecht und waagerecht), weil beide Fassungen im Umlauf sind.
+   */
+  var ANLEITUNG = {
+    ios: {
+      titel: "BASTAKLIM auf den Home-Bildschirm",
+      lead: "Safari fragt nicht von selbst. In zwei Schritten geht es trotzdem:",
+      schritte: [
+        "Unten in der Leiste auf <strong>Teilen</strong> " +
+          glyphe("teilen") + " tippen.",
+        "In der Liste " + glyphe("plus") +
+          " <strong>„Zum Home-Bildschirm“</strong> wählen."
+      ],
+      fuss: "Danach liegt BASTAKLIM als eigenes Symbol auf dem " +
+            "Home-Bildschirm und startet ohne Adresszeile – auch ohne Netz."
+    },
+    android: {
+      titel: "BASTAKLIM als App einrichten",
+      lead: "Der Browser hat gerade nicht von selbst gefragt. So geht es "
+            + "trotzdem:",
+      schritte: [
+        "Das Menü des Browsers öffnen " + glyphe("menue") + ".",
+        "Dort nach <strong>„App installieren“</strong> oder " +
+          "<strong>„Zum Startbildschirm zufügen“</strong> suchen."
+      ],
+      fuss: "Danach liegt BASTAKLIM als eigenes Symbol auf dem " +
+            "Startbildschirm und startet ohne Adresszeile – auch ohne Netz.",
+      mehr: "Schon installiert? Dann hier aktualisieren",
+      mehrZiel: "aktualisierung"
+    },
+    chrome: {
+      titel: "BASTAKLIM als App einrichten",
+      lead: "Chrome hat gerade nicht von selbst gefragt – das tut es nur " +
+            "manchmal, und nie, wenn die App schon installiert war. " +
+            "Von Hand geht es so:",
+      schritte: [
+        "Rechts in der Adresszeile nach diesem Symbol " + glyphe("schirm") +
+          " suchen und darauf klicken.",
+        "Steht dort keines: das Browsermenü öffnen – drei Punkte, je " +
+          "nach Fassung senkrecht oder waagerecht " + glyphe("menue") +
+          glyphe("menue_quer") + " – und darin nach " +
+          "<strong>„installieren“</strong> suchen; der Eintrag steckt " +
+          "je nach Fassung unter <em>Streamen, Speichern und Teilen</em> " +
+          "oder <em>Weitere Tools</em>."
+      ],
+      fuss: "Danach startet BASTAKLIM in einem eigenen Fenster ohne " +
+            "Adresszeile – auch ohne Netz.",
+      mehr: "Schon installiert? Dann hier aktualisieren",
+      mehrZiel: "aktualisierung"
+    },
+    edge: {
+      titel: "BASTAKLIM als App einrichten",
+      lead: "Edge hat gerade nicht von selbst gefragt – das tut es nur " +
+            "manchmal, und nie, wenn die App schon installiert war. " +
+            "Von Hand geht es so:",
+      schritte: [
+        "Rechts in der Adresszeile nach diesem Symbol " + glyphe("schirm") +
+          " suchen und darauf klicken.",
+        "Steht dort keines: das Browsermenü öffnen – drei Punkte, je " +
+          "nach Fassung senkrecht oder waagerecht " + glyphe("menue") +
+          glyphe("menue_quer") + " – und darin nach " +
+          "<strong>„Apps“</strong> suchen; oft liegt es unter " +
+          "<em>Weitere Tools</em> → <em>Apps</em> → " +
+          "<em>„Diese Website als App installieren“</em>."
+      ],
+      fuss: "Danach startet BASTAKLIM in einem eigenen Fenster ohne " +
+            "Adresszeile – auch ohne Netz.",
+      mehr: "Schon installiert? Dann hier aktualisieren",
+      mehrZiel: "aktualisierung"
+    },
+    firefox: {
+      titel: "In Firefox geht das leider nicht",
+      lead: "Firefox am Rechner kann Web-Apps nicht installieren – das ist " +
+            "eine Entscheidung des Browsers, kein Fehler dieser Seite.",
+      schritte: [
+        "Am Rechner: die Seite in <strong>Chrome</strong> oder " +
+          "<strong>Edge</strong> öffnen und dort installieren.",
+        "Am Telefon: Firefox für Android kann es über das Menü " +
+          glyphe("menue") + " → <strong>„Zum Startbildschirm“</strong>."
+      ],
+      fuss: "Als Lesezeichen funktioniert BASTAKLIM in Firefox " +
+            "selbstverständlich auch – nur eben im Browserfenster."
+    },
+    andere: {
+      titel: "BASTAKLIM als App einrichten",
+      lead: "Ihr Browser bietet das Installieren über sein eigenes Menü an:",
+      schritte: [
+        "Das Menü des Browsers öffnen – drei Punkte " + glyphe("menue") +
+          glyphe("menue_quer") + " oder ein Strichmenü.",
+        "Darin nach <strong>„Installieren“</strong>, <strong>„Zum " +
+          "Startbildschirm“</strong> oder <strong>„App hinzufügen“</strong> " +
+          "suchen."
+      ],
+      fuss: "Findet sich dort nichts, kann der Browser es nicht – die Seite " +
+            "funktioniert dann als gewöhnliches Lesezeichen weiter.",
+      mehr: "Schon installiert? Dann hier aktualisieren",
+      mehrZiel: "aktualisierung"
+    },
+
+    /* ⚠️ Dieser Zettel tritt an die Stelle der Installationsanleitung,
+       wenn BASTAKLIM auf dem Gerät schon installiert ist. Dann macht der
+       Browser naemlich kein Angebot mehr – und eine Anleitung zum
+       Installieren waere die falsche Antwort auf den Knopfdruck. Gefragt
+       ist dann das Aktualisieren. */
+    aktualisierung: {
+      titel: "BASTAKLIM ist schon installiert",
+      lead: "Deshalb bietet der Browser das Installieren nicht noch einmal " +
+            "an. Die installierte App holt sich eine neue Fassung beim " +
+            "Start von selbst – hier geht es sofort:",
+      schritte: [
+        "Hier unten auf <strong>Jetzt nachsehen</strong> drücken – die Seite " +
+          "prüft, ob es eine neuere Fassung gibt, und holt sie.",
+        "Danach die installierte App einmal schließen und neu öffnen – " +
+          "dann ist die neue Fassung auch dort drin."
+      ],
+      tun: "Jetzt nachsehen",
+      fuss: "Ein vorbereiteter Offline-Vorrat bleibt dabei erhalten; " +
+            "„Für offline vorbereiten“ muss nach einer Aktualisierung " +
+            "nicht wiederholt werden.",
+      mehr: "App doch nicht mehr auf dem Gerät? Weg zum Installieren zeigen",
+      mehrZiel: "anleitung"
+    }
+  };
+
   (function installKnopf() {
     var knopf = document.getElementById("install");
     if (!knopf) return;
+    var hilfe = document.getElementById("install-hilfe");
+    var tunKnopf = document.getElementById("install-hilfe-tun");
+    var mehrKnopf = document.getElementById("install-hilfe-mehr");
+    var standZeile = document.getElementById("install-hilfe-stand");
     var angebot = null;
+    var installiert = merkerLesen();
+    var offeneArt = null;
+
+    function knopfBeschriften() {
+      knopf.textContent = installiert ? "App aktualisieren" : "App installieren";
+      knopf.title = installiert
+        ? "BASTAKLIM ist auf diesem Gerät schon installiert – nach einer " +
+          "neuen Fassung sehen"
+        : "BASTAKLIM als eigene App einrichten";
+    }
 
     window.addEventListener("beforeinstallprompt", function (ev) {
+      // Das eigene Angebot des Browsers aufheben – es ist der bequemste
+      // Weg, wenn es denn kommt.
       ev.preventDefault();
       angebot = ev;
+      // ⚠️ Dieses Angebot macht Chrome NIE für eine schon installierte
+      // App. Kommt es doch, ist der Merker veraltet – etwa weil die App
+      // zwischendurch gelöscht wurde.
+      installiert = false;
+      merkerSchreiben(false);
+      knopfBeschriften();
       knopf.hidden = false;
+      // Trifft es ein, während die Anleitung offen steht, ist die
+      // Anleitung überflüssig geworden.
+      if (hilfe && !hilfe.hidden) hilfeZeigen(false);
     });
 
-    knopf.addEventListener("click", function () {
-      if (!angebot) return;
+    // Sichtbar, solange die Seite nicht schon als App läuft.
+    knopf.hidden = laeuftAlsApp();
+    knopfBeschriften();
+
+    /* Der verlässliche Weg nachzusehen, ob die App schon auf dem Gerät
+       ist: getInstalledRelatedApps meldet sie, weil sie im Manifest unter
+       related_applications auf ihr eigenes Manifest zeigt. Das kennen nur
+       die Chromium-Browser, und nur über https; Safari und Firefox
+       antworten gar nicht. Dort bleibt es beim Merker und beim
+       Ausbleiben des Angebots. */
+    if (navigator.getInstalledRelatedApps) {
+      navigator.getInstalledRelatedApps().then(function (liste) {
+        if (!liste || !liste.length) return;
+        installiert = true;
+        merkerSchreiben(true);
+        knopfBeschriften();
+      }).catch(function () {});
+    }
+
+    /* Kann dieser Browser von selbst nach dem Installieren fragen?
+       Wenn ja und er fragt trotzdem nicht, ist die App so gut wie sicher
+       schon installiert – dann ist Aktualisieren die richtige Antwort. */
+    function fragtVonSelbst() {
+      var art = browserArt();
+      return art === "chrome" || art === "edge" || art === "android";
+    }
+
+    function hilfeZeigen(an, art) {
+      if (!hilfe) return;
+      if (an) {
+        offeneArt = art || browserArt();
+        var a = ANLEITUNG[offeneArt] || ANLEITUNG.andere;
+        document.getElementById("install-hilfe-titel").textContent = a.titel;
+        document.getElementById("install-hilfe-lead").textContent = a.lead;
+        var ol = document.getElementById("install-hilfe-schritte");
+        ol.textContent = "";
+        a.schritte.forEach(function (text, i) {
+          var li = document.createElement("li");
+          li.innerHTML = '<span class="ios-schritt">' + (i + 1) + "</span>" + text;
+          ol.appendChild(li);
+        });
+        document.getElementById("install-hilfe-fuss").textContent = a.fuss;
+        if (tunKnopf) {
+          tunKnopf.hidden = !a.tun;
+          tunKnopf.disabled = false;
+          if (a.tun) tunKnopf.textContent = a.tun;
+        }
+        if (mehrKnopf) {
+          mehrKnopf.hidden = !a.mehr;
+          if (a.mehr) mehrKnopf.textContent = a.mehr;
+        }
+        if (standZeile) { standZeile.hidden = true; standZeile.textContent = ""; }
+      }
+      hilfe.hidden = !an;
+    }
+
+    function dialogZeigen() {
       angebot.prompt();
       angebot.userChoice.then(function () {
         angebot = null;
         knopf.hidden = true;
       });
+    }
+
+    /* Nach einer neuen Fassung sehen.
+     *
+     * sw.js ruft beim Installieren skipWaiting() auf, eine neue Fassung
+     * übernimmt also sofort. Zu tun ist deshalb nur: den Browser die sw.js
+     * neu holen lassen, und wenn dabei eine andere Fassung herauskommt,
+     * die Seite neu laden. Der Merker bleibt, wie er ist – am Installiert-
+     * sein ändert eine Aktualisierung nichts. */
+    function nachsehen() {
+      function sagen(satz) {
+        if (!standZeile) return;
+        standZeile.textContent = satz;
+        standZeile.hidden = !satz;
+      }
+      function wieder(text) {
+        if (!tunKnopf) return;
+        tunKnopf.textContent = text;
+        tunKnopf.disabled = false;
+      }
+      if (!navigator.serviceWorker) {
+        sagen("Dieser Browser verwaltet keine Fassungen. Die App einmal " +
+              "schließen und neu öffnen genügt dann.");
+        return;
+      }
+      var text = tunKnopf ? tunKnopf.textContent : "";
+      if (tunKnopf) { tunKnopf.disabled = true; tunKnopf.textContent = "sieht nach …"; }
+      sagen("");
+
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (!reg) {
+          wieder(text);
+          sagen("Hier läuft kein Service Worker – beim Öffnen als Datei " +
+                "ist das normal. Über die Web-Adresse geht es.");
+          return;
+        }
+        var neu = false;
+        function gemerkt() { neu = true; }
+        reg.addEventListener("updatefound", gemerkt);
+        return reg.update().then(function () {
+          // updatefound trifft kurz nach dem Versprechen ein.
+          return new Promise(function (fertig) { window.setTimeout(fertig, 700); });
+        }).then(function () {
+          reg.removeEventListener("updatefound", gemerkt);
+          if (neu || reg.installing || reg.waiting) {
+            sagen("Neue Fassung gefunden – die Seite wird neu geladen.");
+            window.setTimeout(function () { location.reload(); }, 900);
+            return;
+          }
+          wieder(text);
+          sagen("Schon auf dem neuesten Stand.");
+        });
+      }).catch(function () {
+        wieder(text);
+        sagen("Nachsehen hat nicht geklappt – ohne Netz geht es nicht.");
+      });
+    }
+
+    /* ⚠️ Der eigene Dialog des Browsers ist IMMER besser als eine
+       Anleitung: Ein Klick, und die Schritte laufen von selbst. Die
+       Anleitung ist nur der Notnagel – und sie altert schlecht, weil die
+       Browser ihre Menüs umbauen.
+
+       Das Angebot trifft aber nicht immer vor dem ersten Klick ein; Chrome
+       schickt es gern eine Sekunde nach dem Laden. Deshalb wird beim Klick
+       kurz gewartet, statt sofort die Anleitung aufzuschlagen. */
+    var WARTEN_MS = 1500;
+
+    knopf.addEventListener("click", function () {
+      if (angebot) { dialogZeigen(); return; }
+
+      // Schon installiert: Auf ein Angebot zu warten wäre vergebens, der
+      // Browser macht für eine installierte App keines mehr.
+      if (installiert) { hilfeZeigen(true, "aktualisierung"); return; }
+
+      var beschriftung = knopf.textContent;
+      knopf.disabled = true;
+      knopf.textContent = "einen Moment …";
+      var bis = Date.now() + WARTEN_MS;
+
+      (function schauen() {
+        if (angebot) {
+          knopf.disabled = false;
+          knopf.textContent = beschriftung;
+          dialogZeigen();
+          return;
+        }
+        if (Date.now() >= bis) {
+          knopf.disabled = false;
+          // Kein Angebot, obwohl dieser Browser von selbst fragen könnte:
+          // dann ist die App schon da. Sonst der Weg von Hand.
+          if (fragtVonSelbst()) {
+            installiert = true;
+            merkerSchreiben(true);
+            knopfBeschriften();
+            hilfeZeigen(true, "aktualisierung");
+          } else {
+            knopf.textContent = beschriftung;
+            hilfeZeigen(true);
+          }
+          return;
+        }
+        window.setTimeout(schauen, 100);
+      })();
     });
+
+    if (hilfe) {
+      document.getElementById("install-hilfe-zu")
+        .addEventListener("click", function () { hilfeZeigen(false); });
+      hilfe.addEventListener("click", function (ev) {
+        if (ev.target === hilfe) hilfeZeigen(false);
+      });
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape" && !hilfe.hidden) hilfeZeigen(false);
+      });
+    }
+    if (tunKnopf) tunKnopf.addEventListener("click", nachsehen);
+    if (mehrKnopf) {
+      mehrKnopf.addEventListener("click", function () {
+        if (offeneArt === "aktualisierung") {
+          // Der Mensch weiß es besser als jede Heuristik: Die App ist
+          // nicht da. Also Merker löschen und den Weg zum Installieren.
+          installiert = false;
+          merkerSchreiben(false);
+          knopfBeschriften();
+          hilfeZeigen(true, browserArt());
+        } else {
+          hilfeZeigen(true, "aktualisierung");
+        }
+      });
+    }
 
     window.addEventListener("appinstalled", function () {
       angebot = null;
+      installiert = true;
+      merkerSchreiben(true);
+      knopfBeschriften();
       knopf.hidden = true;
+      hilfeZeigen(false);
     });
   })();
 
