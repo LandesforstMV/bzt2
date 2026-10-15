@@ -165,6 +165,63 @@
 
   var KOMBIS = D.kombis;   // [ [kliIdx, stgrIdx, bztIdx], ... ]
 
+  /* --- Fußnoten aus Anlage II des Erlasses ---------------------------- *
+   *
+   * data/hinweise.js (tools/build_hinweise.py aus data/BZT_Hinweise.xlsx)
+   * ordnet jeder Kombination "Klimastufe|Standortgruppe|BZT-Nr." ihre
+   * Fußnoten zu. Angezeigt werden sie knapp wie im Erlass: kleines ⚠ mit
+   * hochgestellter Ziffer, der Wortlaut nur im Tooltip, dazu ein Verweis
+   * auf S. 75. Fehlt die Datei, erscheinen keine Fußnoten.
+   * ------------------------------------------------------------------ */
+
+  var HW = window.BZT_HINWEISE || null;
+
+  // { bzt: Map bztIdx->Set, stgr: Map stgrIdx->Set, art: Map Kürzel->Set, alle: Set }
+  function fussnotenFuer(rows) {
+    var out = { bzt: new Map(), stgr: new Map(), art: new Map(), alle: new Set() };
+    if (!HW) return out;
+    function dazu(map, key, nr) {
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key).add(nr);
+    }
+    rows.forEach(function (r) {
+      var key = D.klimastufen[r[0]].id + "|" + D.standorte[r[1]].id + "|" + D.bzt[r[2]].nr;
+      (HW.zuordnung[key] || []).forEach(function (id) {
+        var info = HW.texte[id];
+        if (!info || info.art !== "fussnote") return;
+        // Fußnoten betreffen Baumarten und stehen dort; am BZT bleibt nur
+        // die ohne Baumart (Fußnote 4). Fußnote 2 (Standort, Kalk im
+        // Oberboden) wird bewusst nicht angezeigt.
+        if (info.bezug === "Standort") return;
+        if (!(info.baumarten || []).length) dazu(out.bzt, r[2], info.nr);
+        (info.baumarten || []).forEach(function (a) { dazu(out.art, a, info.nr); });
+        out.alle.add(info.nr);
+      });
+    });
+    return out;
+  }
+
+  function fussnotenText(nrs) {
+    return Array.from(nrs).sort().map(function (nr) {
+      var t = HW && HW.texte["F" + nr];
+      return nr + ") " + (t ? t.text : "");
+    }).join("\n");
+  }
+
+  // ⚠ mit hochgestellten Fußnotenziffern, Wortlaut im Tooltip
+  function fussnotenMarke(nrs) {
+    var m = el("span", "fn-marke", "⚠");
+    m.appendChild(el("sup", null, Array.from(nrs).sort().join(",")));
+    m.title = "Fußnote Anlage II:\n" + fussnotenText(nrs);
+    return m;
+  }
+
+  function fussnotenVerweis() {
+    var p = el("p", "fn-hinweis");
+    p.appendChild(document.createTextNode("⚠ Bitte kleinstandörtliche Gegebenheiten beachten!"));
+    return p;
+  }
+
   /* --- Zustand ------------------------------------------------------- */
 
   var sel = { kli: new Set(), stgr: new Set(), bzt: new Set(), ba: new Set() };
@@ -400,6 +457,7 @@
 
       var rechts = el("span", "tile-right");
       rechts.appendChild(el("span", "tile-count", String(e.n)));
+      if (e.fn && e.fn.size) rechts.appendChild(fussnotenMarke(e.fn));
       if (facet === "kli" || facet === "bzt") {
         var lupe = el("button", "tile-doc");
         lupe.type = "button";
@@ -447,8 +505,9 @@
     var proBzt = new Map();
     rows.forEach(function (r) {
       var e = proBzt.get(r[2]);
-      if (!e) { e = { n: 0, stgr: new Set(), kli: new Set() }; proBzt.set(r[2], e); }
+      if (!e) { e = { n: 0, stgr: new Set(), kli: new Set(), rows: [] }; proBzt.set(r[2], e); }
       e.n++;
+      e.rows.push(r);
       e.stgr.add(r[1]);
       e.kli.add(r[0]);
     });
@@ -479,6 +538,7 @@
 
   function bztKarte(bi, info) {
     var b = D.bzt[bi];
+    var fn = fussnotenFuer(info.rows);
     var card = el("article", "card" + (fokusBzt === b.id ? " is-focus" : ""));
     card.id = "card-" + b.slug;
 
@@ -491,7 +551,9 @@
 
     var head = el("header", "card-head");
     var htxt = el("div");
-    htxt.appendChild(el("h3", null, b.typ + " – " + b.name));
+    var h3 = el("h3", null, b.typ + " – " + b.name);
+    if (fn.bzt.get(bi)) h3.appendChild(fussnotenMarke(fn.bzt.get(bi)));
+    htxt.appendChild(h3);
     htxt.appendChild(el("p", "sub",
       "Nr. " + b.nr + " · Laubholzanteil " + Math.round((b.lhAnteil || 0) * 100) + " %"));
     head.appendChild(htxt);
@@ -528,6 +590,7 @@
           chip.title = (a ? a.name + (a.latVoll ? " – " + a.latVoll : "") : code) +
             " · anklicken, um nach dieser Baumart zu filtern";
           chip.appendChild(document.createTextNode(code));
+          if (fn.art.get(code)) chip.appendChild(fussnotenMarke(fn.art.get(code)));
           var txt = el("span", "art-txt");
           txt.appendChild(el("small", null, a ? a.name : ""));
           if (a && a.lat) txt.appendChild(el("i", null, a.lat));
@@ -537,6 +600,9 @@
       box.appendChild(arten);
       card.appendChild(box);
     });
+
+
+
 
     var foot = el("div", "card-foot");
     var kliNamen = Array.from(info.kli).sort().map(function (i) {
@@ -550,6 +616,7 @@
       .sort(function (a, b2) { return a - b2; })
       .forEach(function (si) { liste.appendChild(el("span", null, D.standorte[si].id)); });
     foot.appendChild(liste);
+    if (fn.alle.size) foot.appendChild(fussnotenVerweis());
     card.appendChild(foot);
     return card;
   }
@@ -637,17 +704,23 @@
       return { obj: o, n: cStgr.get(i) || 0 };
     }), D.standorte.length);
 
+    // Fußnoten an den BZT erst, wenn Klimastufe oder Standort gewählt
+    // sind – ohne Auswahl trüge fast jeder BZT mit Buche eine.
+    var fnBzt = (sel.kli.size || sel.stgr.size) ? fussnotenFuer(filtern("bzt")).bzt : new Map();
+
     renderSpalte("bzt", D.bzt.map(function (o, i) {
-      return { obj: o, n: cBzt.get(i) || 0 };
+      return { obj: o, n: cBzt.get(i) || 0, fn: fnBzt.get(i) || null };
     }).sort(function (a, b) {
       return (b.n > 0) - (a.n > 0) || a.obj.nr - b.obj.nr;
     }), D.bzt.length);
 
     // Baumarten: absteigend nach Maximalanteil, dann nach Häufigkeit
+    var fnArt = (sel.kli.size || sel.stgr.size) ? fussnotenFuer(filtern("ba")).art : new Map();
     renderSpalte("ba", D.baumarten.map(function (o) {
       var s = statBa.get(o.code);
       return {
         obj: o,
+        fn: fnArt.get(o.code) || null,
         n: s ? s.n : 0,
         nBzt: s ? s.bzt.size : 0,
         max: s ? s.max : (artMaxGesamt.get(o.code) || 0),
@@ -1175,14 +1248,19 @@
     var kopf = ["Klimastufe", "Standortbeschreibung", "Standortgruppe",
                 "Naehrstoff", "Wasserhaushalt", "BZT_Nr", "BZT_Typ", "BZT_Bezeichnung",
                 "LH_Anteil"];
+    kopf.push("Fussnoten_AnlageII");
     for (var g = 1; g <= 3; g++) {
       kopf.push("Baumart_" + g, "Anteil_BA" + g, "Min_BA" + g, "Max_BA" + g);
     }
     var zeilen = [kopf];
     rows.forEach(function (r) {
       var k = D.klimastufen[r[0]], s = D.standorte[r[1]], b = D.bzt[r[2]];
+      var f = fussnotenFuer([r]);
+      var hw = [];
+      if (f.alle.size) hw.push(Array.from(f.alle).sort().join(","));
+      hw = hw.join("; ");
       var z = [k.quellwert, s.gruppe, s.id, s.naehrstoff, s.wasserhaushalt,
-               b.id, b.typ, b.name, b.lhAnteil];
+               b.id, b.typ, b.name, b.lhAnteil, hw];
       for (var i = 1; i <= 3; i++) {
         var gr = b.gruppen.filter(function (x) { return x.rang === i; })[0];
         z.push(gr ? gr.arten.join(",") : "", gr ? gr.label : "",
@@ -1220,12 +1298,24 @@
     }
   }
 
+  // Die Adresse kommt von aussen (geteilter Link, QR-Code) – ihr Inhalt
+  // ist nicht vertrauenswuerdig. Deshalb zwei Regeln:
+  //  * Ein kaputtes %-Zeichen darf die App nicht am Start hindern.
+  //  * Nur Kennungen, die es in den Daten gibt, werden uebernommen. Sonst
+  //    stuende beliebiger Text aus dem Link als Filter-Chip und auf dem
+  //    gedruckten Standortblatt – ein gefaelschter Hinweis saehe dann aus,
+  //    als kaeme er von der App.
+  function entschluesseln(text) {
+    try { return decodeURIComponent(text); } catch (e) { return ""; }
+  }
+
   function leseHash() {
     var h = location.hash.replace(/^#/, "");
     if (!h) return;
+    var bekannt = { kli: idxKli, stgr: idxStgr, bzt: idxBzt, ba: idxBa };
     h.split("&").forEach(function (p) {
       var kv = p.split("=");
-      var k = kv[0], v = decodeURIComponent(kv[1] || "");
+      var k = kv[0], v = entschluesseln(kv[1] || "");
       if (k === "bamode") {
         baMode = v === "oder" ? "oder" : "und";
         document.querySelectorAll("[data-bamode]").forEach(function (b) {
@@ -1235,8 +1325,11 @@
         });
         return;
       }
-      if (!sel[k]) return;
-      v.split(",").filter(Boolean).forEach(function (id) { sel[k].add(decodeURIComponent(id)); });
+      if (!sel[k] || !bekannt[k]) return;
+      v.split(",").filter(Boolean).forEach(function (id) {
+        id = entschluesseln(id);
+        if (bekannt[k].has(id)) sel[k].add(id);
+      });
     });
   }
 
@@ -1565,6 +1658,9 @@
     prozent: prozent,
     artName: artName,
     baumartenFuer: baumartenFuer,
+    fussnotenFuer: fussnotenFuer,
+    fussnotenMarke: fussnotenMarke,
+    fussnotenVerweis: fussnotenVerweis,
     setzeAuswahl: setzeAuswahl
   };
 

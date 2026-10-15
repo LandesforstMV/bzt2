@@ -1,0 +1,38 @@
+/* ==========================================================================
+   FUSSNOTEN AUS ANLAGE II – knapp wie im Erlass: ⚠ mit Hochzahl
+   Wird von index.html / index_noident.html per <link> geladen und steht
+   in sw.js im Rumpf-Vorrat. Daten dazu: data/hinweise.js.
+   ========================================================================== */
+
+:root {
+  --warn-700: #8a5a00;
+  --warn-linie: #e9c46a;
+}
+
+/* ⚠ mit Fußnotenziffer an der Baumart (Wortlaut im Tooltip) */
+.fn-marke {
+  display: inline-flex;
+  align-items: flex-start;
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--warn-700);
+  cursor: help;
+  white-space: nowrap;
+}
+.fn-marke sup { font-size: 9px; margin-left: 1px; }
+.art .fn-marke { margin-left: 1px; align-self: flex-start; }
+
+/* "⚠ Bitte kleinstandörtliche Gegebenheiten beachten!" */
+.fn-hinweis {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--warn-700);
+}
+.light-hinweise { margin: 14px 0 0; }
+.light-hinweise .fn-hinweis { font-size: 13px; }
+
+@media print {
+  .fn-hinweis { font-size: 7.5pt; color: #000; }
+}

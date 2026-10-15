@@ -590,6 +590,17 @@
 
     mischungZeigen(gewaehlt, raus.length);
 
+    // Fußnoten aus Anlage II (bei gewählter Mischung nur für die Zieltypen,
+    // die die Mischung zulassen): ⚠ mit Ziffer an der Baumart, Wortlaut im
+    // Tooltip, darunter ein kurzer Hinweis.
+    fn = K.fussnotenFuer ? K.fussnotenFuer(passendRows) : null;
+    var fnBox = id("light-hinweise");
+    if (fnBox) {
+      fnBox.textContent = "";
+      fnBox.hidden = !(fn && fn.alle.size);
+      if (fn && fn.alle.size) fnBox.appendChild(K.fussnotenVerweis());
+    }
+
     baumlisteZeichnen(id("baumliste-haupt"), haupt);
     baumlisteZeichnen(id("baumliste-rest"), rest);
     baumlisteZeichnen(id("baumliste-raus"), raus);
@@ -702,6 +713,10 @@
     });
   }
 
+  var fn = null;           // Fußnoten der aktuellen Treffer (app.js)
+
+
+
   /* --- Die gewählte Mischung ------------------------------------------- */
 
   function mischungZeigen(gewaehlt, ausgeschlossen) {
@@ -789,6 +804,8 @@
       var t = el("div", "baum-text");
       t.appendChild(el("b", null, a.art.name));
       t.appendChild(el("i", null, a.art.lat));
+      var artFn = a.moeglich && fn ? fn.art.get(a.art.code) : null;
+      if (artFn && artFn.size) t.querySelector("b").appendChild(K.fussnotenMarke(artFn));
       karte.appendChild(t);
       var wert = el("div", "baum-anteil");
       wert.appendChild(el("b", null, a.moeglich ? spanne(a) : "–"));

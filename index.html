@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="BASTAKLIM">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="data/fussnoten.css">
 </head>
 <body>
 
@@ -107,6 +108,7 @@
       </div>
       <footer>BT-FVI Waldbau Projekt MultiRiskSuit</footer>
     </section>
+
 
     <section class="karte">
       <h2>Quellen</h2>
@@ -278,6 +280,9 @@
         <div class="baumliste" id="baumliste-raus"></div>
       </details>
 
+      <!-- Fußnoten und Bedingungen des Erlasses zum gewählten Standort -->
+      <div class="light-hinweise" id="light-hinweise" hidden></div>
+
       <p class="light-fussnote">
         Angegeben ist der <strong>höchste Anteil</strong>, mit dem die Baumart auf
         diesem Standort in einem Bestockungszieltyp vorkommen darf – bei einer
@@ -434,6 +439,7 @@
      fünf Endungen je Kachel durch – über HTTP 504 Anfragen je Aufruf. -->
 <script src="data/bilder.js"></script>
 <script src="data/klimaraster.js"></script>
+<script src="data/hinweise.js"></script>
 <script src="app.js"></script>
 <script src="light.js"></script>
 </body>
