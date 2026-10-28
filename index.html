@@ -13,7 +13,6 @@
 <meta name="apple-mobile-web-app-title" content="BASTAKLIM">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="data/fussnoten.css">
 </head>
 <body>
 
@@ -95,11 +94,27 @@
   </div>
 </div>
 
+<!-- Hinweiszettel zur Standortskartierung.
+
+     ⚠️ Leer im HTML: Titel, Punkte und Fußzeile kommen aus
+     data/starthinweise.js, damit der Text ohne Eingriff in den Code
+     gepflegt werden kann. -->
+<div class="ios-hinweis" id="starthinweis" hidden>
+  <div class="ios-karte ios-karte--weit">
+    <button type="button" class="ios-zu" id="starthinweis-zu"
+            aria-label="schließen">×</button>
+    <h2 id="starthinweis-titel"></h2>
+    <ul class="hinweis-punkte" id="starthinweis-punkte"></ul>
+    <button type="button" class="ios-tun" id="starthinweis-ok"></button>
+    <p class="ios-fuss" id="starthinweis-fuss" hidden></p>
+  </div>
+</div>
+
 <div class="layout" id="layout">
 
   <aside class="sidebar" id="sidebar">
     <section class="karte">
-      <h2>BASTAKLIM v3.2 Beta</h2>
+      <h2>BASTAKLIM v3.3 Beta</h2>
       <div class="karte-inhalt">
         <p>JP. Nasse</p>
         <p>Dr. E. A. Thurm</p>
@@ -109,12 +124,24 @@
       <footer>BT-FVI Waldbau Projekt MultiRiskSuit</footer>
     </section>
 
-
     <section class="karte">
       <h2>Quellen</h2>
       <div class="karte-inhalt">
         <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass (PDF)</a>
         <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">Klimastufen-Karte (PDF)</a>
+      </div>
+    </section>
+
+    <!-- Hinweise zur Standortskartierung. Inhalt und Häufigkeit stehen in
+         data/starthinweise.js; bleibt verborgen, wenn es die Datei nicht
+         gibt – siehe startHinweise() in app.js. -->
+    <section class="karte" id="sidebar-hinweise" hidden>
+      <h2>Hinweise</h2>
+      <div class="karte-inhalt">
+        <p>Was von der Standortskartierung zu beachten ist.</p>
+        <button type="button" class="btn btn--klein" id="hinweise-oeffnen">
+          Hinweise anzeigen
+        </button>
       </div>
     </section>
 
@@ -127,6 +154,7 @@
                 title="QR-Code groß anzeigen">
           <img id="teilen-qr-bild" alt="QR-Code zum Öffnen von BASTAKLIM">
         </button>
+        <p class="qr-ziel" id="teilen-ziel" hidden></p>
         <p class="qr-text" id="teilen-text" hidden>
           Mit der Kamera scannen. Zum Vergrößern antippen.
         </p>
@@ -279,9 +307,6 @@
         </p>
         <div class="baumliste" id="baumliste-raus"></div>
       </details>
-
-      <!-- Fußnoten und Bedingungen des Erlasses zum gewählten Standort -->
-      <div class="light-hinweise" id="light-hinweise" hidden></div>
 
       <p class="light-fussnote">
         Angegeben ist der <strong>höchste Anteil</strong>, mit dem die Baumart auf
@@ -439,7 +464,12 @@
      fünf Endungen je Kachel durch – über HTTP 504 Anfragen je Aufruf. -->
 <script src="data/bilder.js"></script>
 <script src="data/klimaraster.js"></script>
+<!-- Fußnoten der Anlage II (tools/build_hinweise.py). Fehlt die Datei,
+     zeigt die App keine Fußnoten und läuft unverändert weiter. -->
 <script src="data/hinweise.js"></script>
+<!-- Hinweise zur Standortskartierung. Der Text darin darf von Hand
+     geändert werden – die Datei ist JSON mit einer Zeile Vorspann. -->
+<script src="data/starthinweise.js"></script>
 <script src="app.js"></script>
 <script src="light.js"></script>
 </body>

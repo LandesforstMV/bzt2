@@ -165,61 +165,224 @@
 
   var KOMBIS = D.kombis;   // [ [kliIdx, stgrIdx, bztIdx], ... ]
 
-  /* --- Fußnoten aus Anlage II des Erlasses ---------------------------- *
+  /* --- Hinweise des Erlasses zu einem Zieltyp --------------------------- *
    *
-   * data/hinweise.js (tools/build_hinweise.py aus data/BZT_Hinweise.xlsx)
-   * ordnet jeder Kombination "Klimastufe|Standortgruppe|BZT-Nr." ihre
-   * Fußnoten zu. Angezeigt werden sie knapp wie im Erlass: kleines ⚠ mit
-   * hochgestellter Ziffer, der Wortlaut nur im Tooltip, dazu ein Verweis
-   * auf S. 75. Fehlt die Datei, erscheinen keine Fußnoten.
-   * ------------------------------------------------------------------ */
+   * data/hinweise.js (von tools/build_hinweise.py aus data/BZT_Hinweise.xlsx
+   * erzeugt) ordnet jeder Kombination „Klimastufe|Standortgruppe|BZT-Nr.“
+   * ihre Hinweise zu. Fehlt die Datei, erscheinen keine und die App läuft
+   * unverändert weiter.
+   *
+   * Dreierlei steckt darin:
+   *
+   *   Fußnoten der Anlage II   nummeriert 1 bis 5, gelten je Kombination
+   *   Typ C                     Standort-Abschnitt der BZT-Beschreibung
+   *   Typ B                     Fußnoten der Eignungstabellen, Anlage I
+   *
+   * Fußnote 2 bleibt draußen: Sie beschreibt den Standort („Kalk im
+   * Oberboden“) und nicht den Zieltyp.
+   *
+   * ⚠️ Der Wortlaut darf NICHT nur im title stehen. Auf dem Telefon gibt
+   * es kein Überfahren mit der Maus – was nur im Tooltip steht, ist dort
+   * unerreichbar. Deshalb trägt jede BZT-Tafel einen Knopf, der alles
+   * auf- und zuklappt; die kleinen Marken an Titel und Baumart sagen nur,
+   * WO eine Fußnote greift.
+   * ---------------------------------------------------------------------- */
 
   var HW = window.BZT_HINWEISE || null;
 
-  // { bzt: Map bztIdx->Set, stgr: Map stgrIdx->Set, art: Map Kürzel->Set, alle: Set }
-  function fussnotenFuer(rows) {
-    var out = { bzt: new Map(), stgr: new Map(), art: new Map(), alle: new Set() };
-    if (!HW) return out;
-    function dazu(map, key, nr) {
-      if (!map.has(key)) map.set(key, new Set());
-      map.get(key).add(nr);
-    }
+  /**
+   * Welche Hinweise gelten für diese Zeilen?
+   *
+   * ⚠️ Nur was überall gilt, wird genannt. Eine Tafel fasst ohne Auswahl
+   * bis zu 83 Standortgruppen über drei Klimastufen zusammen; ein Hinweis
+   * betrifft davon oft nur ein Dutzend. Stünde er trotzdem da, warnte die
+   * App an jeder Tafel vor allem, was irgendwo einmal gilt – und niemand
+   * weiß mehr, was ihn angeht. Gezeigt wird deshalb nur, was auf JEDE
+   * gerade gezeigte Kombination zutrifft. Die übrigen werden gezählt und
+   * als Zeile „noch N auf einem Teil der Standorte“ angekündigt; wer
+   * Klimastufe oder Standort wählt, bekommt sie im Wortlaut.
+   *
+   * @param rows Kombinationen [kliIdx, stgrIdx, bztIdx]
+   * @return {{
+   *   markenBzt: Set,     Fußnotenziffern für den Titel der Tafel
+   *   markenArt: Map,     Kürzel -> Set von Fußnotenziffern
+   *   fussnoten: Array,   Ziffern, die hier überall gelten
+   *   weitere:   Array,   Kennungen der Hinweise B und C, die hier gelten
+   *   teil:      number,  wie viele nur auf einem Teil gelten
+   *   anzahl:    number
+   * }}
+   */
+  function hinweiseFuer(rows) {
+    var raus = { markenBzt: new Set(), markenArt: new Map(),
+                 fussnoten: [], weitere: [], teil: 0, anzahl: 0 };
+    if (!HW || !HW.zuordnung || !rows.length) return raus;
+
+    // Je Hinweis: auf wie vielen der gezeigten Kombinationen steht er?
+    // Jede Kombination nennt ihn höchstens einmal, also ist die Zahl
+    // unmittelbar vergleichbar mit rows.length.
+    var zaehler = new Map();
     rows.forEach(function (r) {
-      var key = D.klimastufen[r[0]].id + "|" + D.standorte[r[1]].id + "|" + D.bzt[r[2]].nr;
-      (HW.zuordnung[key] || []).forEach(function (id) {
+      var schluessel = D.klimastufen[r[0]].id + "|" + D.standorte[r[1]].id +
+                       "|" + D.bzt[r[2]].nr;
+      (HW.zuordnung[schluessel] || []).forEach(function (id) {
         var info = HW.texte[id];
-        if (!info || info.art !== "fussnote") return;
-        // Fußnoten betreffen Baumarten und stehen dort; am BZT bleibt nur
-        // die ohne Baumart (Fußnote 4). Fußnote 2 (Standort, Kalk im
-        // Oberboden) wird bewusst nicht angezeigt.
-        if (info.bezug === "Standort") return;
-        if (!(info.baumarten || []).length) dazu(out.bzt, r[2], info.nr);
-        (info.baumarten || []).forEach(function (a) { dazu(out.art, a, info.nr); });
-        out.alle.add(info.nr);
+        if (!info) return;
+        if (info.art === "fussnote" && info.bezug === "Standort") return;  // Nr. 2
+        zaehler.set(id, (zaehler.get(id) || 0) + 1);
       });
     });
-    return out;
+
+    // Reihenfolge wie in den Daten, damit die Hinweise eines Zieltyps in
+    // der Folge des Erlasses stehen.
+    Object.keys(HW.texte).forEach(function (id) {
+      var treffer = zaehler.get(id);
+      if (!treffer) return;
+      if (treffer < rows.length) { raus.teil++; return; }
+
+      var info = HW.texte[id];
+      var arten = info.baumarten || [];
+      if (info.art === "fussnote") {
+        raus.fussnoten.push(info.nr);
+        if (!arten.length) raus.markenBzt.add(info.nr);
+        arten.forEach(function (a) {
+          if (!raus.markenArt.has(a)) raus.markenArt.set(a, new Set());
+          raus.markenArt.get(a).add(info.nr);
+        });
+      } else {
+        // Typ B und C tragen keine Ziffer, deshalb auch keine Marke an
+        // der Kachel. Welche Baumart gemeint ist, steht im Hinweis.
+        raus.weitere.push(id);
+      }
+    });
+
+    raus.fussnoten = fussnotenSortiert(raus.fussnoten);
+    raus.anzahl = raus.fussnoten.length + raus.weitere.length;
+    return raus;
   }
 
-  function fussnotenText(nrs) {
-    return Array.from(nrs).sort().map(function (nr) {
-      var t = HW && HW.texte["F" + nr];
-      return nr + ") " + (t ? t.text : "");
-    }).join("\n");
+
+  function fussnotenSortiert(nrs) {
+    return Array.from(nrs).sort(function (a, b) { return Number(a) - Number(b); });
   }
 
-  // ⚠ mit hochgestellten Fußnotenziffern, Wortlaut im Tooltip
+  /** Kleine Marke: zeigt, wo eine Fußnote greift. Kein Knopf – sie sitzt
+      auch im Baumart-Chip, und ein Knopf im Knopf ist kein gültiges HTML. */
   function fussnotenMarke(nrs) {
-    var m = el("span", "fn-marke", "⚠");
-    m.appendChild(el("sup", null, Array.from(nrs).sort().join(",")));
-    m.title = "Fußnote Anlage II:\n" + fussnotenText(nrs);
+    var m = el("span", "fn-marke");
+    m.setAttribute("aria-hidden", "true");
+    m.appendChild(document.createTextNode("⚠"));
+    m.appendChild(el("sup", null, fussnotenSortiert(nrs).join(",")));
     return m;
   }
 
-  function fussnotenVerweis() {
-    var p = el("p", "fn-hinweis");
-    p.appendChild(document.createTextNode("⚠ Bitte kleinstandörtliche Gegebenheiten beachten!"));
+  /** „Rotbuche, Hainbuche: “ – oder nichts, wenn der Hinweis allen gilt.
+      ⚠️ Nur der erste Name je Baumart: Manche tragen zwei („Bergrüster,
+      Bergulme“), und aneinandergereiht wäre nicht mehr zu erkennen, wo
+      die eine aufhört und die nächste anfängt. */
+  function artenVorspann(codes) {
+    if (!codes || !codes.length) return "";
+    return codes.map(function (c) {
+      return artName(c).split(",")[0].trim();
+    }).join(", ") + ": ";
+  }
+
+  function hinweisZeile(vorne, text, quelle) {
+    var p = el("p", "fn-satz");
+    if (vorne) p.appendChild(el("b", null, vorne));
+    p.appendChild(document.createTextNode((vorne ? " " : "") + text));
+    if (quelle) p.appendChild(el("span", "fn-quelle", " (" + quelle + ")"));
     return p;
+  }
+
+  /**
+   * Der aufklappbare Hinweisblock einer BZT-Tafel.
+   *
+   * Knopf und Text sind ein Stück: ein Fingertipp öffnet, der nächste
+   * schließt. Beim Drucken steht alles offen (styles.css).
+   */
+  function hinweisBlock(h) {
+    var block = el("div", "fn-block");
+
+    var knopf = el("button", "fn-knopf");
+    knopf.type = "button";
+    knopf.setAttribute("aria-expanded", "false");
+    knopf.appendChild(el("span", "fn-zeichen", "⚠"));
+
+    var ziffern = h.fussnoten;
+    var rest = h.weitere.length;
+    var wort;
+    if (ziffern.length && rest) {
+      wort = "Fußnote" + (ziffern.length === 1 ? " " : "n ") + ziffern.join(", ") +
+             " und " + rest + " weitere" + (rest === 1 ? "r Hinweis" : " Hinweise");
+    } else if (ziffern.length) {
+      wort = "Fußnote" + (ziffern.length === 1 ? " " : "n ") + ziffern.join(", ") +
+             " der Anlage II";
+    } else if (rest) {
+      wort = rest + " Hinweis" + (rest === 1 ? "" : "e") + " zum Zieltyp";
+    } else {
+      // Nichts gilt hier überall – nur der Verweis auf die übrigen.
+      wort = h.teil + " Hinweis" + (h.teil === 1 ? "" : "e") +
+             " auf einem Teil der Standorte";
+    }
+    knopf.appendChild(el("span", "fn-titel", wort + " beachten"));
+    var pfeil = el("span", "fn-pfeil", "▾");
+    pfeil.setAttribute("aria-hidden", "true");
+    knopf.appendChild(pfeil);
+
+    var text = el("div", "fn-text");
+    text.hidden = true;
+
+    if (ziffern.length) {
+      text.appendChild(el("p", "fn-gruppe", "Fußnoten der Anlage II"));
+      ziffern.forEach(function (nr) {
+        var t = HW && HW.texte["F" + nr];
+        text.appendChild(hinweisZeile(nr + ")", t ? t.text : "", null));
+      });
+    }
+
+    // Typ C vor Typ B: Die Beschreibung des Zieltyps liegt näher an der
+    // Entscheidung als die Fußnote der Eignungstabelle.
+    [["typC", "Aus der Beschreibung des Zieltyps"],
+     ["typB", "Zu den Eignungstabellen (Anlage I)"]].forEach(function (paar) {
+      var ids = h.weitere.filter(function (id) {
+        return HW.texte[id] && HW.texte[id].art === paar[0];
+      });
+      if (!ids.length) return;
+      text.appendChild(el("p", "fn-gruppe", paar[1]));
+      ids.forEach(function (id) {
+        var t = HW.texte[id];
+        text.appendChild(hinweisZeile(
+          artenVorspann(t.baumarten).replace(/: $/, ":"), t.text,
+          t.seite ? "S. " + t.seite : null));
+      });
+    });
+
+    // ⚠️ Verschwiegen wird nichts: Was nur auf einem Teil der Standorte
+    // gilt, steht nicht im Wortlaut da – aber es steht da, DASS es das
+    // gibt und wie man es sichtbar macht.
+    if (h.teil) {
+      text.appendChild(el("p", "fn-teil",
+        h.teil === 1
+          ? "Ein weiterer Hinweis gilt nur auf einem Teil der hier gezeigten " +
+            "Standorte. Klimastufe oder Standortgruppe wählen, dann steht er hier."
+          : h.teil + " weitere Hinweise gelten nur auf einem Teil der hier " +
+            "gezeigten Standorte. Klimastufe oder Standortgruppe wählen, dann " +
+            "stehen sie hier."));
+    }
+
+    text.appendChild(el("p", "fn-merksatz",
+      "⚠ Bitte kleinstandörtliche Gegebenheiten beachten!"));
+
+    knopf.addEventListener("click", function () {
+      var auf = text.hidden;
+      text.hidden = !auf;
+      knopf.setAttribute("aria-expanded", auf ? "true" : "false");
+      block.classList.toggle("ist-auf", auf);
+    });
+
+    block.appendChild(knopf);
+    block.appendChild(text);
+    return block;
   }
 
   /* --- Zustand ------------------------------------------------------- */
@@ -457,7 +620,6 @@
 
       var rechts = el("span", "tile-right");
       rechts.appendChild(el("span", "tile-count", String(e.n)));
-      if (e.fn && e.fn.size) rechts.appendChild(fussnotenMarke(e.fn));
       if (facet === "kli" || facet === "bzt") {
         var lupe = el("button", "tile-doc");
         lupe.type = "button";
@@ -505,7 +667,12 @@
     var proBzt = new Map();
     rows.forEach(function (r) {
       var e = proBzt.get(r[2]);
-      if (!e) { e = { n: 0, stgr: new Set(), kli: new Set(), rows: [] }; proBzt.set(r[2], e); }
+      // rows: die einzelnen Kombinationen, aus denen die Tafel entsteht.
+      // Nur sie wissen, welche Fussnoten hier überhaupt greifen.
+      if (!e) {
+        e = { n: 0, stgr: new Set(), kli: new Set(), rows: [] };
+        proBzt.set(r[2], e);
+      }
       e.n++;
       e.rows.push(r);
       e.stgr.add(r[1]);
@@ -538,7 +705,7 @@
 
   function bztKarte(bi, info) {
     var b = D.bzt[bi];
-    var fn = fussnotenFuer(info.rows);
+    var fn = hinweiseFuer(info.rows || []);
     var card = el("article", "card" + (fokusBzt === b.id ? " is-focus" : ""));
     card.id = "card-" + b.slug;
 
@@ -552,7 +719,7 @@
     var head = el("header", "card-head");
     var htxt = el("div");
     var h3 = el("h3", null, b.typ + " – " + b.name);
-    if (fn.bzt.get(bi)) h3.appendChild(fussnotenMarke(fn.bzt.get(bi)));
+    if (fn.markenBzt.size) h3.appendChild(fussnotenMarke(fn.markenBzt));
     htxt.appendChild(h3);
     htxt.appendChild(el("p", "sub",
       "Nr. " + b.nr + " · Laubholzanteil " + Math.round((b.lhAnteil || 0) * 100) + " %"));
@@ -590,7 +757,9 @@
           chip.title = (a ? a.name + (a.latVoll ? " – " + a.latVoll : "") : code) +
             " · anklicken, um nach dieser Baumart zu filtern";
           chip.appendChild(document.createTextNode(code));
-          if (fn.art.get(code)) chip.appendChild(fussnotenMarke(fn.art.get(code)));
+          if (fn.markenArt.get(code)) {
+            chip.appendChild(fussnotenMarke(fn.markenArt.get(code)));
+          }
           var txt = el("span", "art-txt");
           txt.appendChild(el("small", null, a ? a.name : ""));
           if (a && a.lat) txt.appendChild(el("i", null, a.lat));
@@ -601,8 +770,7 @@
       card.appendChild(box);
     });
 
-
-
+    if (fn.anzahl || fn.teil) card.appendChild(hinweisBlock(fn));
 
     var foot = el("div", "card-foot");
     var kliNamen = Array.from(info.kli).sort().map(function (i) {
@@ -616,7 +784,6 @@
       .sort(function (a, b2) { return a - b2; })
       .forEach(function (si) { liste.appendChild(el("span", null, D.standorte[si].id)); });
     foot.appendChild(liste);
-    if (fn.alle.size) foot.appendChild(fussnotenVerweis());
     card.appendChild(foot);
     return card;
   }
@@ -704,23 +871,17 @@
       return { obj: o, n: cStgr.get(i) || 0 };
     }), D.standorte.length);
 
-    // Fußnoten an den BZT erst, wenn Klimastufe oder Standort gewählt
-    // sind – ohne Auswahl trüge fast jeder BZT mit Buche eine.
-    var fnBzt = (sel.kli.size || sel.stgr.size) ? fussnotenFuer(filtern("bzt")).bzt : new Map();
-
     renderSpalte("bzt", D.bzt.map(function (o, i) {
-      return { obj: o, n: cBzt.get(i) || 0, fn: fnBzt.get(i) || null };
+      return { obj: o, n: cBzt.get(i) || 0 };
     }).sort(function (a, b) {
       return (b.n > 0) - (a.n > 0) || a.obj.nr - b.obj.nr;
     }), D.bzt.length);
 
     // Baumarten: absteigend nach Maximalanteil, dann nach Häufigkeit
-    var fnArt = (sel.kli.size || sel.stgr.size) ? fussnotenFuer(filtern("ba")).art : new Map();
     renderSpalte("ba", D.baumarten.map(function (o) {
       var s = statBa.get(o.code);
       return {
         obj: o,
-        fn: fnArt.get(o.code) || null,
         n: s ? s.n : 0,
         nBzt: s ? s.bzt.size : 0,
         max: s ? s.max : (artMaxGesamt.get(o.code) || 0),
@@ -986,7 +1147,12 @@
     function starten() {
       if (!bereit) return;
       box.classList.add("ist-weg");
-      window.setTimeout(function () { box.hidden = true; }, 420);
+      window.setTimeout(function () {
+        box.hidden = true;
+        // Jetzt erst ist die Oberfläche zu sehen – der Augenblick für den
+        // Hinweiszettel. Siehe startHinweise() weiter unten.
+        document.dispatchEvent(new CustomEvent("bzt-start-sichtbar"));
+      }, 420);
       document.removeEventListener("keydown", tastatur);
     }
     function tastatur(ev) {
@@ -994,6 +1160,111 @@
     }
     box.addEventListener("click", starten);
     document.addEventListener("keydown", tastatur);
+  })();
+
+  /* --- Hinweise zur Standortskartierung --------------------------------- *
+   *
+   * Derselbe Text an zwei Stellen: als Zettel nach dem Startbild und
+   * jederzeit über die Seitenleiste. Der Wortlaut steht in
+   * data/starthinweise.js und darf dort von Hand geändert werden.
+   *
+   * ⚠️ Wie oft soll er von selbst kommen? Jedes Mal ist eine Zumutung,
+   * einmal für immer zu wenig – wer die App nach Tagen wieder aufmacht,
+   * soll die Hinweise erneut sehen. Gemerkt wird deshalb der Zeitpunkt des
+   * letzten Wegklickens; nach "abstandTage" kommt der Zettel wieder.
+   * Ändert sich der Text, zählt man in der Datei "fassung" hoch – dann
+   * erscheint er sofort bei allen, auch bei denen, die ihn gerade erst
+   * gelesen haben.
+   * ---------------------------------------------------------------------- */
+
+  var SH_SPEICHER = "bzt-starthinweis";
+
+  (function startHinweise() {
+    var daten = window.BZT_STARTHINWEISE || null;
+    var box = document.getElementById("starthinweis");
+    var karte = document.getElementById("sidebar-hinweise");
+    if (!box) return;
+    if (!daten) {
+      // Ohne Daten bliebe eine leere Überschrift stehen.
+      if (karte) karte.hidden = true;
+      return;
+    }
+
+    var titel = document.getElementById("starthinweis-titel");
+    var punkte = document.getElementById("starthinweis-punkte");
+    var fuss = document.getElementById("starthinweis-fuss");
+    var ok = document.getElementById("starthinweis-ok");
+
+    titel.textContent = daten.titel || "Hinweise";
+    punkte.textContent = "";
+    (daten.punkte || []).forEach(function (satz) {
+      punkte.appendChild(el("li", null, satz));
+    });
+    fuss.textContent = daten.fuss || "";
+    fuss.hidden = !daten.fuss;
+    ok.textContent = daten.knopf || "Verstanden";
+    if (karte) karte.hidden = false;
+
+    function merken() {
+      try {
+        window.localStorage.setItem(SH_SPEICHER, JSON.stringify({
+          fassung: daten.fassung,
+          zuletzt: new Date().toISOString()
+        }));
+      } catch (e) {}      // privates Fenster, gesperrter Speicher: egal
+    }
+
+    function faellig() {
+      var stand = null;
+      try {
+        stand = JSON.parse(window.localStorage.getItem(SH_SPEICHER) || "null");
+      } catch (e) {}
+      if (!stand) return true;
+      if (stand.fassung !== daten.fassung) return true;   // Text geändert
+      var tage = Number(daten.abstandTage);
+      if (!(tage > 0)) return true;                       // 0: jedes Mal
+      var her = Date.now() - Date.parse(stand.zuletzt);
+      if (!(her >= 0)) return true;                       // krummer Eintrag
+      return her >= tage * 86400000;
+    }
+
+    function zeigen() {
+      box.hidden = false;
+      ok.focus();
+    }
+
+    function schliessen() {
+      if (box.hidden) return;
+      box.hidden = true;
+      merken();
+    }
+
+    var angestossen = false;
+    function anstossen() {
+      if (angestossen) return;
+      angestossen = true;
+      if (faellig()) window.setTimeout(zeigen, 650);
+    }
+
+    document.addEventListener("bzt-start-sichtbar", anstossen);
+    // Gibt es kein Startbild, kommt dieses Ereignis nie – dann gleich.
+    if (!document.getElementById("splash")) anstossen();
+
+    bei("starthinweis-ok", "click", schliessen);
+    bei("starthinweis-zu", "click", schliessen);
+    box.addEventListener("click", function (ev) {
+      if (ev.target === box) schliessen();
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") schliessen();
+    });
+
+    // Aus der Seitenleiste: zeigt den Zettel, auch wenn er nicht fällig
+    // wäre. Das Wegklicken setzt die Frist dann neu.
+    bei("hinweise-oeffnen", "click", function () {
+      box.hidden = false;
+      ok.focus();
+    });
   })();
 
   /* --- Seitenleiste ---------------------------------------------------- */
@@ -1248,19 +1519,14 @@
     var kopf = ["Klimastufe", "Standortbeschreibung", "Standortgruppe",
                 "Naehrstoff", "Wasserhaushalt", "BZT_Nr", "BZT_Typ", "BZT_Bezeichnung",
                 "LH_Anteil"];
-    kopf.push("Fussnoten_AnlageII");
     for (var g = 1; g <= 3; g++) {
       kopf.push("Baumart_" + g, "Anteil_BA" + g, "Min_BA" + g, "Max_BA" + g);
     }
     var zeilen = [kopf];
     rows.forEach(function (r) {
       var k = D.klimastufen[r[0]], s = D.standorte[r[1]], b = D.bzt[r[2]];
-      var f = fussnotenFuer([r]);
-      var hw = [];
-      if (f.alle.size) hw.push(Array.from(f.alle).sort().join(","));
-      hw = hw.join("; ");
       var z = [k.quellwert, s.gruppe, s.id, s.naehrstoff, s.wasserhaushalt,
-               b.id, b.typ, b.name, b.lhAnteil, hw];
+               b.id, b.typ, b.name, b.lhAnteil];
       for (var i = 1; i <= 3; i++) {
         var gr = b.gruppen.filter(function (x) { return x.rang === i; })[0];
         z.push(gr ? gr.arten.join(",") : "", gr ? gr.label : "",
@@ -1298,24 +1564,12 @@
     }
   }
 
-  // Die Adresse kommt von aussen (geteilter Link, QR-Code) – ihr Inhalt
-  // ist nicht vertrauenswuerdig. Deshalb zwei Regeln:
-  //  * Ein kaputtes %-Zeichen darf die App nicht am Start hindern.
-  //  * Nur Kennungen, die es in den Daten gibt, werden uebernommen. Sonst
-  //    stuende beliebiger Text aus dem Link als Filter-Chip und auf dem
-  //    gedruckten Standortblatt – ein gefaelschter Hinweis saehe dann aus,
-  //    als kaeme er von der App.
-  function entschluesseln(text) {
-    try { return decodeURIComponent(text); } catch (e) { return ""; }
-  }
-
   function leseHash() {
     var h = location.hash.replace(/^#/, "");
     if (!h) return;
-    var bekannt = { kli: idxKli, stgr: idxStgr, bzt: idxBzt, ba: idxBa };
     h.split("&").forEach(function (p) {
       var kv = p.split("=");
-      var k = kv[0], v = entschluesseln(kv[1] || "");
+      var k = kv[0], v = decodeURIComponent(kv[1] || "");
       if (k === "bamode") {
         baMode = v === "oder" ? "oder" : "und";
         document.querySelectorAll("[data-bamode]").forEach(function (b) {
@@ -1325,11 +1579,8 @@
         });
         return;
       }
-      if (!sel[k] || !bekannt[k]) return;
-      v.split(",").filter(Boolean).forEach(function (id) {
-        id = entschluesseln(id);
-        if (bekannt[k].has(id)) sel[k].add(id);
-      });
+      if (!sel[k]) return;
+      v.split(",").filter(Boolean).forEach(function (id) { sel[k].add(decodeURIComponent(id)); });
     });
   }
 
@@ -1356,6 +1607,19 @@
     // damit mit: Wer teilt, teilt seine Auswahl.
     if (location.protocol !== "http:" && location.protocol !== "https:") return null;
     return location.href;
+  }
+
+  /**
+   * Die blanke Adresse der Anwendung, ohne Filter und Suchteil.
+   *
+   * ⚠️ Sie gehört unter den QR-Code. Ein aufgeklebter fremder Code lässt
+   * sich auf einem Aushang nicht verhindern; die einzige Gegenwehr ist,
+   * dass daneben lesbar steht, wohin der echte führt. Aus demselben Grund
+   * steht das Schema mit da: „https://“ ist Teil der Prüfung.
+   */
+  function blankeAdresse() {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return null;
+    return location.origin + location.pathname;
   }
 
   function qrLaden(img, fertig) {
@@ -1400,6 +1664,7 @@
    */
   function zeigeAdresse(text) {
     var leiste = document.getElementById("teilen-knoepfe");
+    // Nur einmal: Steht das Feld schon da, bleibt es stehen.
     if (!leiste || document.getElementById("teilen-adresse")) return;
     var feld = el("input", "teilen-adresse");
     feld.id = "teilen-adresse";
@@ -1462,13 +1727,24 @@
       leiste.appendChild(kopieren);
     }
 
+    var adresszeile = document.getElementById("teilen-ziel");
+    var blank = blankeAdresse();
+
     qrLaden(bild, function (pfad) {
       if (pfad) {
         knopf.hidden = false;
         text.hidden = false;
+        // Beim Öffnen als Datei gibt es keine Adresse, die jemandem nützt –
+        // dann bleibt die Zeile weg, statt einen Dateipfad zu zeigen.
+        if (adresszeile && blank) {
+          adresszeile.textContent = blank;
+          adresszeile.hidden = false;
+        }
         knopf.addEventListener("click", function () {
           viewerOeffnen("BASTAKLIM teilen",
-            "Mit der Kamera des Telefons scannen",
+            blank ? "Mit der Kamera des Telefons scannen – der Code führt zu " +
+                    blank
+                  : "Mit der Kamera des Telefons scannen",
             [{ bild: pfad, alt: "QR-Code zum Öffnen von BASTAKLIM" }]);
         });
       } else {
@@ -1658,9 +1934,6 @@
     prozent: prozent,
     artName: artName,
     baumartenFuer: baumartenFuer,
-    fussnotenFuer: fussnotenFuer,
-    fussnotenMarke: fussnotenMarke,
-    fussnotenVerweis: fussnotenVerweis,
     setzeAuswahl: setzeAuswahl
   };
 

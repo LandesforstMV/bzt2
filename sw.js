@@ -28,7 +28,7 @@
    den alten Vorrat und die Änderung kommt nie an.
    ========================================================================== */
 
-var VERSION = "bastaklim-v29";
+var VERSION = "bastaklim-v31";
 var RUMPF_VORRAT = VERSION + "-rumpf";
 var LAUFEND_VORRAT = VERSION + "-laufend";
 
@@ -45,7 +45,7 @@ var RUMPF = [
   "./data/bilder.js",
   "./data/klimaraster.js",
   "./data/hinweise.js",
-  "./data/fussnoten.css",
+  "./data/starthinweise.js",
   "./assets/klimastufe/karte.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",

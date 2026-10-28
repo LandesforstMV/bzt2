@@ -587,6 +587,23 @@ img.ist-geladen { opacity: 1; }
   color: var(--text-schwach);
 }
 .qr-text[hidden] { display: none !important; }
+/* Die Adresse, zu der der Code führt – zum Vergleichen, bevor jemand
+   scannt. Nicht zu verwechseln mit .teilen-adresse weiter unten: Das ist
+   das Eingabefeld, in dem die Adresse zum Abschreiben steht, wenn die
+   Zwischenablage sich sperrt.
+   ⚠️ overflow-wrap: anywhere – die Adresse muss in die schmale Leiste
+   passen, ohne sie zu sprengen. Anders als break-all wird nur dort mitten
+   im Wort getrennt, wo es sonst überliefe; Schrägstrich und Punkt bleiben
+   die bevorzugten Trennstellen. */
+.qr-ziel {
+  margin: 7px 0 0;
+  font-family: "DejaVu Sans Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 11px; line-height: 1.4;
+  color: var(--gruen-900);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.qr-ziel[hidden] { display: none !important; }
 #sidebar-teilen[hidden] { display: none !important; }
 .teilen-adresse {
   width: 100%;
@@ -2080,6 +2097,110 @@ button.baum:focus-visible { outline: 2px solid var(--blau-600); outline-offset: 
 /* Auf breiten Fenstern mittig statt unten – dort ist es kein Telefon. */
 @media (min-width: 560px) {
   .ios-hinweis { align-items: center; }
+}
+
+/* --- Fußnoten der Anlage II ----------------------------------------------- *
+
+   Zwei Teile: die kleine Marke ⚠³, die sagt WO eine Fußnote greift, und
+   der aufklappbare Block in der BZT-Tafel mit dem Wortlaut.
+
+   ⚠️ Die Marke ist bewusst kein Knopf – sie sitzt auch im Baumart-Chip,
+   und ein Knopf im Knopf ist kein gültiges HTML. Angetippt wird der Block.
+   --------------------------------------------------------------------------- */
+:root {
+  --warn-700: #8a5a00;
+  --warn-linie: #e9c46a;
+  --warn-feld: #fdf7e8;
+}
+
+.fn-marke {
+  display: inline-flex; align-items: flex-start;
+  margin-left: 4px;
+  font-size: 12px; font-weight: 400; line-height: 1;
+  color: var(--warn-700);
+  white-space: nowrap;
+}
+.fn-marke sup { font-size: 9px; margin-left: 1px; }
+.art .fn-marke { margin-left: 2px; }
+
+.fn-block {
+  margin: 9px 13px;
+  border: 1px solid var(--warn-linie);
+  border-radius: 9px;
+  background: var(--warn-feld);
+  overflow: hidden;
+}
+.fn-knopf {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 11px;
+  border: 0; background: none;
+  font: inherit; font-size: 12.5px; text-align: left;
+  color: var(--warn-700); cursor: pointer;
+}
+.fn-knopf:hover { background: #faeecd; }
+.fn-zeichen { flex: none; font-size: 15px; line-height: 1; }
+.fn-titel { flex: 1 1 auto; }
+.fn-pfeil { flex: none; transition: transform .15s ease; }
+.fn-block.ist-auf .fn-pfeil { transform: rotate(180deg); }
+
+.fn-text {
+  padding: 2px 11px 10px;
+  border-top: 1px solid var(--warn-linie);
+}
+.fn-text[hidden] { display: none; }
+.fn-satz {
+  margin: 9px 0 0;
+  font-size: 13px; line-height: 1.5; color: var(--text);
+}
+.fn-satz b { color: var(--warn-700); }
+/* „N weitere Hinweise gelten nur auf einem Teil der Standorte …“ */
+.fn-teil {
+  margin: 12px 0 0; padding: 7px 9px;
+  border-radius: 7px; background: rgba(255, 255, 255, .6);
+  font-size: 12px; line-height: 1.45; color: var(--text-schwach);
+}
+.fn-quelle { color: var(--text-schwach); font-size: 11.5px; }
+/* Zwischenüberschrift im Block: Anlage II, Beschreibung, Anlage I. */
+.fn-gruppe {
+  margin: 12px 0 0;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--warn-700); opacity: .8;
+}
+.fn-gruppe:first-child { margin-top: 9px; }
+.fn-merksatz {
+  margin: 10px 0 0;
+  font-size: 12px; color: var(--warn-700);
+}
+
+/* Gedruckt wird alles gezeigt: Auf Papier kann niemand aufklappen. */
+@media print {
+  .fn-text[hidden] { display: block !important; }
+  .fn-pfeil { display: none; }
+  .fn-block { background: none; }
+  .fn-satz, .fn-merksatz, .fn-gruppe { color: #000; }
+}
+
+/* --- Hinweiszettel zur Standortskartierung --------------------------------- *
+
+   Nutzt die Hülle des Installieren-Zettels (.ios-hinweis/.ios-karte), nur
+   etwas breiter: Hier stehen ganze Sätze, keine zwei Schritte.
+   --------------------------------------------------------------------------- */
+.ios-karte--weit { max-width: 560px; }
+
+.hinweis-punkte {
+  margin: 0; padding: 0; list-style: none;
+}
+.hinweis-punkte li {
+  position: relative;
+  padding: 9px 0 9px 22px;
+  border-top: 1px solid var(--linie);
+  font-size: 14px; line-height: 1.5;
+}
+.hinweis-punkte li::before {
+  content: "\25b8";
+  position: absolute; left: 4px; top: 9px;
+  color: var(--gruen-700);
 }
 
 /* --- Für offline vorbereiten (Seitenleiste) ------------------------------- */
