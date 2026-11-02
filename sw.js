@@ -28,7 +28,7 @@
    den alten Vorrat und die Änderung kommt nie an.
    ========================================================================== */
 
-var VERSION = "bastaklim-v31";
+var VERSION = "bastaklim-v34";
 var RUMPF_VORRAT = VERSION + "-rumpf";
 var LAUFEND_VORRAT = VERSION + "-laufend";
 

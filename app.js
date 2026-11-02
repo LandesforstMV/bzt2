@@ -77,6 +77,9 @@
   };
   var SEITEN_BILD = function (nr) { return "assets/seiten/seite-" + nr + ".jpg"; };
   var KLIMA_BILD = "assets/seiten/klimastufen.jpg";
+  // Übersicht der 43 Baumarten, Bildschirmfassung des Posters
+  // (tools/baumart_poster.py). Die Druckfassung wird nicht ausgeliefert.
+  var UEBERSICHT_BILD = "assets/baumarten_uebersicht.webp";
 
   /* ------------------------------------------------------------------ */
 
@@ -941,6 +944,7 @@
 
   function viewerOeffnen(titel, sub, seiten, pdfUrl) {
     viewer.zuletzt = document.activeElement;
+    viewer.box.classList.remove("viewer--poster", "viewer--zoom");
     viewer.titel.textContent = titel;
     viewer.sub.textContent = sub || "";
     viewer.seiten = seiten;
@@ -1002,8 +1006,37 @@
     }], DOKUMENTE.klima.pdf);
   }
 
+  // Baumartenübersicht: großes Bild, per Klick zwischen „ganz sehen“ und
+  // „lesbar groß“ umschalten. Kein Link zum Herunterladen, kein
+  // Kontextmenü, nicht ziehbar. Verhindern lässt sich das Speichern im
+  // Browser nie ganz (Bildschirmfoto, Entwicklerwerkzeuge) – deshalb liegt
+  // hier nur die Bildschirmfassung, nicht die Druckdatei.
+  function zeigeBaumartenuebersicht() {
+    viewerOeffnen("Baumartenübersicht des BZT",
+      D.baumarten.length + " Baumarten der Bestockungszieltypen", [{
+        bild: UEBERSICHT_BILD,
+        label: "Zum Vergrößern ins Bild klicken",
+        alt: "Übersicht der Baumarten mit Blatt, Frucht, Kürzel, deutschem und wissenschaftlichem Namen"
+      }], "");
+    viewer.box.classList.add("viewer--poster");
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-baumartenuebersicht]"),
+    function (knopf) { knopf.addEventListener("click", zeigeBaumartenuebersicht); });
+
   // Die Seitenansicht gibt es nur dort, wo auch die BZT-Spalte steht.
   if (viewer.box) {
+    viewer.bild.setAttribute("draggable", "false");
+    viewer.bild.addEventListener("click", function () {
+      if (viewer.box.classList.contains("viewer--poster")) {
+        var gross = viewer.box.classList.toggle("viewer--zoom");
+        viewer.blatt.textContent = gross ? "Zum Verkleinern ins Bild klicken"
+                                         : "Zum Vergrößern ins Bild klicken";
+      }
+    });
+    viewer.bild.addEventListener("contextmenu", function (ev) {
+      if (viewer.box.classList.contains("viewer--poster")) ev.preventDefault();
+    });
     viewer.box.addEventListener("click", function (ev) {
       if (ev.target === viewer.box || ev.target.classList.contains("viewer-zu")) {
         viewerSchliessen();
@@ -1350,6 +1383,7 @@
         g.push(["assets/" + einzeln[n]]);
       });
       g.push([KLIMA_BILD]);
+      g.push([UEBERSICHT_BILD]);
       g.push(["assets/klimastufe/karte.png"]);
       g.push([DOKUMENTE.erlass.pdf]);
       g.push([DOKUMENTE.klima.pdf]);
@@ -1738,6 +1772,11 @@
         // dann bleibt die Zeile weg, statt einen Dateipfad zu zeigen.
         if (adresszeile && blank) {
           adresszeile.textContent = blank;
+          // Als Verweis, nicht als bloßer Text: Am Telefon zeigt langes
+          // Antippen das Ziel und bietet das Kopieren an, am Rechner steht
+          // es beim Überfahren in der Statuszeile. Genau darum geht es
+          // hier – nachsehen können, wohin der Code führt.
+          adresszeile.href = blank;
           adresszeile.hidden = false;
         }
         knopf.addEventListener("click", function () {

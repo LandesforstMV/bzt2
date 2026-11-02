@@ -112,7 +112,7 @@
 
 <div class="layout" id="layout">
 
-  <aside class="sidebar" id="sidebar">
+ <aside class="sidebar" id="sidebar">
     <section class="karte">
       <h2>BASTAKLIM v3.3 Beta</h2>
       <div class="karte-inhalt">
@@ -129,6 +129,9 @@
       <div class="karte-inhalt">
         <a href="dokumente/BZT_Erlass.pdf" target="_blank" rel="noopener">BZT-Erlass (PDF)</a>
         <a href="dokumente/Klimastufen_BZT.pdf" target="_blank" rel="noopener">Klimastufen-Karte (PDF)</a>
+        <button type="button" class="btn btn--klein knopf-uebersicht" data-baumartenuebersicht>
+          Baumartenübersicht des BZT
+        </button>
       </div>
     </section>
 
@@ -154,7 +157,7 @@
                 title="QR-Code groß anzeigen">
           <img id="teilen-qr-bild" alt="QR-Code zum Öffnen von BASTAKLIM">
         </button>
-        <p class="qr-ziel" id="teilen-ziel" hidden></p>
+        <a class="qr-ziel" id="teilen-ziel" hidden></a>
         <p class="qr-text" id="teilen-text" hidden>
           Mit der Kamera scannen. Zum Vergrößern antippen.
         </p>
@@ -275,6 +278,9 @@
     <!-- ---------------------------------------------------------------- -->
     <section class="light-schritt" data-schritt="3" id="schritt-3" hidden>
       <h2>Mögliche Baumarten</h2>
+      <button type="button" class="btn btn--klein knopf-uebersicht" data-baumartenuebersicht>
+        Baumartenübersicht des BZT
+      </button>
       <p class="light-lead" id="ergebnis-kopf"></p>
 
       <p class="baum-legende">
@@ -384,6 +390,7 @@
           <h2>Baumart</h2>
           <span class="col-count"><b data-count>–</b><span data-total></span></span>
           <button type="button" class="col-clear" data-clear hidden aria-label="Auswahl Baumart löschen">Auswahl löschen</button>
+          <button type="button" class="btn btn--klein col-uebersicht" data-baumartenuebersicht>Baumartenübersicht des BZT</button>
         </header>
         <div class="col-tools">
           <input type="search" class="col-search" data-search placeholder="Baumart suchen …" aria-label="Baumart suchen">
